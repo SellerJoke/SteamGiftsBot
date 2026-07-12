@@ -3,7 +3,6 @@ import time
 from pathlib import Path
 
 import dill
-from curl_cffi import Cookies
 from httpx import Cookies
 
 from src.const.path import ROOT_DIR

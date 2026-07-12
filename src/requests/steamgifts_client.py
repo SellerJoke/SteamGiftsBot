@@ -1,6 +1,5 @@
 import locale
 import logging
-import re
 import time
 from typing import Any, Literal
 
@@ -24,7 +23,6 @@ from src.util.convertor import data2giveaway
 class SteamGiftsClient:
     """与SteamGifts进行请求交互的客户端"""
     LOGGER: logging.Logger = None
-    _CODE_REGEX = re.compile(r"https://www\.steamgifts_client\.com/giveaway/([a-zA-Z0-9]{5})(/.*)?")
     _STEAMGIFTS_HOMEPAGE_URL = "https://www.steamgifts.com/"
     _GIVEAWAY_LIST_URL = "https://www.steamgifts.com/giveaways/search"
     _INSERT_DELETE_ENTRY_URL = "https://www.steamgifts.com/ajax.php"
@@ -40,7 +38,7 @@ class SteamGiftsClient:
         3. 使用_client获取首页soup，更新_index_soup字段，从首页soup中获取登录状态
         4. 如果登录状态为已登录，更新_points、_points_update_timestamp、_index_update_timestamp、_xsrf_token字段
         """
-        locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
+        locale.setlocale(locale.LC_ALL, "en_US")
         if SteamGiftsClient.LOGGER is None:
             SteamGiftsClient.LOGGER = logging.getLogger(__name__).getChild(SteamGiftsClient.__name__)
         self._client = RetryClient()
@@ -78,10 +76,12 @@ class SteamGiftsClient:
             if not response.is_success:
                 logger.error("请求赠送列表失败")
                 response.raise_for_status()
+                break
             data = response.json()
-            if not data['success']:
+            if not data.get("success"):
                 logger.error(f"获取赠送列表失败\n{'-' * 5}响应体{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
-            current_giveaway_datas = data["results"]
+                break
+            current_giveaway_datas = data.get("results")
             # 如果当前页没有数据，说明已经过了赠送列表最后一页，应当退出循环
             if not current_giveaway_datas:
                 break
@@ -247,8 +247,9 @@ class SteamGiftsClient:
         self._xsrf_token = status.get("xsrf_token")
 
     def save_status(self):
+        if self._xsrf_token is None:
+            raise Exception("xsrf_token为空，无法保存状态")
         StatusIO.save_points(self._points, self._points_update_timestamp)
-        assert self._xsrf_token is not None
         StatusIO.save_xsrf_token(self._xsrf_token)
 
     def update_status(self):
@@ -322,8 +323,5 @@ class SteamGiftsClient:
 
 
 if __name__ == "__main__":
-    print(1 or 2)
-    print(1 and 2)
-    print(0 and 1)
-    print(0 or 1)
+    pass
 

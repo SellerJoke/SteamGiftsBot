@@ -169,8 +169,8 @@ class Bot:
         }
         # 合并querying_app_infos、outdated_giveaway_app_infos、outdated_giveaway_pkg_app_infos、outdated_pkg_app_infos，
         # 移除未过期的，剩下的就是过期的或未查询到的app_info
-        fetching_app_infos: set[IdName] = querying_app_infos | outdated_giveaway_app_infos | \
-                                          outdated_giveaway_pkg_app_infos | outdated_pkg_app_infos - \
+        fetching_app_infos: set[IdName] = (querying_app_infos | outdated_giveaway_app_infos |
+                                           outdated_giveaway_pkg_app_infos | outdated_pkg_app_infos) - \
                                           {to_id_name(app) for app in queried_up_to_date_apps}
         # 从Steam网站获取app信息
         fetched_apps: list[SteamApp] = self._steam_client.fetch_steam_apps(fetching_app_infos)
@@ -281,6 +281,4 @@ class Bot:
 
 
 if __name__ == '__main__':
-    d1 = {1: "a", 2: "b"}
-    d2 = {2: "c", 3: "d"}
-    print(d1 | d2)
+    pass

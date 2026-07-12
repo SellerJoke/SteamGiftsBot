@@ -204,7 +204,6 @@ class RetryClient(Client):
             logger.info(f"{method} {url} - 302 重定向到{response.url}")
         else:
             logger.error(f"{method} {url} - {response.status_code}{response_text}")
-            response.raise_for_status()
 
     @staticmethod
     def _ca_bundle() -> str:

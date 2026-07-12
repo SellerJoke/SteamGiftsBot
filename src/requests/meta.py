@@ -1,8 +1,6 @@
 import logging
 import time
 
-from httpx import Response
-
 _MODULE_LOGGER: logging.Logger = logging.getLogger(__name__)
 
 class _FrequencyLimit:
@@ -83,28 +81,17 @@ class WebsiteThrottle:
             time.sleep(sleep_interval)
 
 
-def retry_on_exception(exceptions: type[Exception] | tuple[type[Exception], ...], max_time: int = 0,
+def retry_on_exception(exceptions: type[Exception] | tuple[type[Exception], ...], max_time: int = 100,
                        sleep_interval: float = 0):
     """
     装饰器：在指定异常发生时重试
     :param exceptions: 要重试的异常类型列表
-    :param max_time: 最大重试次数，为0表示无限重试
+    :param max_time: 最大重试次数
     :param sleep_interval: 重试时间间隔，单位秒
     """
     logger: logging.Logger = _MODULE_LOGGER.getChild(retry_on_exception.__name__)
     def decorator(func):
         def wrapper(*args, **kwargs):
-            i = 0
-            if max_time == 0:
-                while True:
-                    try:
-                        return func(*args, **kwargs)
-                    except exceptions as e:
-                        i += 1
-                        logger.error(f"第{i}次执行{func.__name__}方法发生异常：{type(e)}({e})，")
-                        if sleep_interval != 0:
-                            logger.error(f"休眠{sleep_interval:.1f}秒重试")
-                            time.sleep(sleep_interval)
             last_exception: Exception | None = None
             for i in range(max_time):
                 try:
@@ -122,9 +109,12 @@ def retry_on_exception(exceptions: type[Exception] | tuple[type[Exception], ...]
 
 def retry_on_502(func):
     """装饰器：在收到502响应后再次请求，此装饰器仅能应用于返回httpx.Response的函数"""
+    max_times = 100
     def wrapper(*args, **kwargs):
-        response: Response = func(*args, **kwargs)
-        while response.status_code == 502:
+        for i in range(max_times):
             response = func(*args, **kwargs)
-        return response
+            if response.status_code != 502:
+                return response
+        else:
+            raise Exception(f"连续收到{max_times}次502响应")
     return wrapper

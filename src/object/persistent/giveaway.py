@@ -49,8 +49,8 @@ class Giveaway(Base, IntPKMixin):
     creator: Mapped[User] = relationship(foreign_keys=[creator_id], back_populates="giveaways", lazy="joined")
 
     # noinspection PyShadowingBuiltins
-    def __init__(self, *, _id: int, name: str, points: int = 0, copies: int = 1, app_id: int = None,
-                 package_id: int = None, link: str, created_timestamp: int, start_timestamp: int,
+    def __init__(self, *, _id: int, name: str, points: int = 0, copies: int = 1, app_id: int | None = None,
+                 package_id: int | None = None, link: str, created_timestamp: int, start_timestamp: int,
                  end_timestamp: int, region_restricted: bool = False, invite_only: bool = False,
                  whitelist: bool = False, group: bool = False, contributor_level: int = 0, comment_count: int = 0,
                  entry_count: int = 0, creator_id: int, entered: bool = False):
