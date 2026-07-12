@@ -1,0 +1,10 @@
+httpx-curl-cffi==0.1.5  # httpx和curl-cffi的结合体，用于发送HTTP请求，并模拟浏览器的TLS指纹
+httpx # httpx是httpx-curl-cffi的必须库，本不必列出，在此处列出是因为代码中直接使用了httpx中API
+curl-cffi # curl-cffi是httpx-curl-cffi的必须库，本不必列出，在此处列出是因为代码中直接使用了curl-cffi中API
+h2==4.3.0   # 提供HTTP/2支持
+brotli==1.2.0   # 支持br格式压缩的HTTP响应
+zstandard==0.25.0   # 支持zstd格式压缩的HTTP响应
+beautifulsoup4==4.15.0  # 用于解析HTML文档
+SQLAlchemy==2.0.51  # 用于数据库操作
+dill==0.4.1 # 用于序列化和反序列化，可以序列化pickle无法序列化的锁对象
+pyyaml==6.0.3 # 用于解析YAML文件

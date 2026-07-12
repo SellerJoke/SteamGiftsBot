@@ -1,0 +1,3 @@
+debug: false  # 是否开启调试模式，开启后会打印更多日志，可用于反馈给开发者
+PHPSESSID: null # 用于登录Steamgifts网站的cookie，长度为48的字符串，包含数字和小写字母
+

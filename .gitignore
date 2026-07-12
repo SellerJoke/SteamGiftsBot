@@ -1,0 +1,11 @@
+## IDEA ##
+/.idea/
+
+## 项目目录或文件 ##
+__pycache__/
+/.venv/
+/log/
+/resources/persistence/
+/resources/status.dill
+test.py
+*TODO*
