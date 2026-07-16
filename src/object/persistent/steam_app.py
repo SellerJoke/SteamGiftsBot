@@ -85,17 +85,4 @@ class SteamApp(Base, IntPKMixin, NameMixin):
 
 
 if __name__ == "__main__":
-    ubermosh = SteamApp(id=357070, name="UBERMOSH", type="game", total_positive=7304, total_reviews=7956)
-    ubermosh3 = SteamApp(id=515570, name="UBERMOSH Vol.3", type="game", total_positive=1363, total_reviews=1492)
-    ubermosh5 = SteamApp(id=640380, name="UBERMOSH Vol.5", type="game", total_positive=1456, total_reviews=1549)
-    ubermosh7 = SteamApp(id=1029980, name="UBERMOSH Vol.7", type="game", total_positive=418, total_reviews=510)
-    ubermosh_soundtrack = SteamApp(id=366420, name="UBERMOSH: Original Soundtrack", type="dlc", total_positive=167, total_reviews=181)
-    ubermosh_black = SteamApp(id=1538570, name="UBERMOSH:BLACK", type="game", total_positive=1386, total_reviews=1560)
-    ubermosh_omega = SteamApp(id=1181000, name="UBERMOSH:OMEGA", type="game", total_positive=467, total_reviews=518)
-    ubermosh_santicide = SteamApp(id=898450, name="UBERMOSH:SANTICIDE", type="game", total_positive=468, total_reviews=525)
-    ubermosh_wraith = SteamApp(id=586350, name="UBERMOSH:WRAITH", type="game", total_positive=1373, total_reviews=1492)
-    quickerflak = SteamApp(id=1836120, name="QUICKERFLAK", type="game", total_positive=2320, total_reviews=2668)
-    trip_2_vinelands = SteamApp(id=546090, name="Trip to Vinelands", type="game", total_positive=1339, total_reviews=1568)
-    ttv2 = SteamApp(id=701470, name="TTV2", type="game", total_positive=1259, total_reviews=1454)
-    print(ubermosh, ubermosh3, ubermosh5, ubermosh7, ubermosh_soundtrack, ubermosh_black, ubermosh_omega,
-          ubermosh_santicide, ubermosh_wraith, quickerflak, trip_2_vinelands, ttv2)
+    pass
