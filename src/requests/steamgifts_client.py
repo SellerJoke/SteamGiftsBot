@@ -23,6 +23,7 @@ from src.util.convertor import data2giveaway
 class SteamGiftsClient:
     """与SteamGifts进行请求交互的客户端"""
     LOGGER: logging.Logger = None
+    _END_TIMESTAMP_INTERVAL: int = 72 * 60 * 60  # 每次获取3天时间范围内的赠送
     _STEAMGIFTS_HOMEPAGE_URL = "https://www.steamgifts.com/"
     _GIVEAWAY_LIST_URL = "https://www.steamgifts.com/giveaways/search"
     _INSERT_DELETE_ENTRY_URL = "https://www.steamgifts.com/ajax.php"
@@ -58,19 +59,23 @@ class SteamGiftsClient:
         self.save_status()
         self._client.close()
 
-    def fetch_giveaways(self, end_timestamp: float = 0.) -> list[Giveaway]:
+    def fetch_giveaways(self, end_timestamp_lower_bound: int = 0) -> list[Giveaway]:
         """
-        从SteamGifts网站获取赠送列表，获取范围是timestamp时间戳之前内结束的赠送；
-        :param end_timestamp: 用于确定获取赠送的最晚结束时间
+        从SteamGifts网站获取赠送列表，尽量保证获取的赠送的结束时间在[end_timestamp_lower_bound, end_timestamp_lower_bound + _END_TIMESTAMP_INTERVAL]之间
+        :param end_timestamp_lower_bound: 用于确定获取赠送的最晚结束时间
         :return: 赠送列表
         """
-        logger = SteamGiftsClient.LOGGER.getChild(self.fetch_giveaways.__name__)
-        logger.debug("获取赠送列表")
+        logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.fetch_giveaways.__name__)
+        logger.info("获取赠送列表")
+        lower_bound: int = max(end_timestamp_lower_bound, int(time.time()))
+        upper_bound: int = lower_bound + SteamGiftsClient._END_TIMESTAMP_INTERVAL
         giveaway_datas: list[GiveawayData] = []
-        page = 1
-        last_giveaway_end_timestamp = 0
-        # 获取从指定时间以后72小时内结束的赠送
-        while last_giveaway_end_timestamp < end_timestamp:
+        page: int = 1
+        first_giveaway_end_timestamp: int = 0
+        while first_giveaway_end_timestamp <= upper_bound:
+            # 若当前页的赠送列表的结束时间范围在[lower_bound,upper_bound]左侧（不重叠）时，该赠送列表不符合要求，应该舍弃，前往下一页；
+            # 若当前页的赠送列表的结束时间范围与[lower_bound,upper_bound]重叠时，该页赠送符合要求，应该保留；
+            # 若当前页的赠送列表的结束时间范围在[lower_bound,upper_bound]右侧（不重叠）时，应当退出循环。
             params = {"format": "json", "page": page}
             response = self._client.get(SteamGiftsClient._GIVEAWAY_LIST_URL, params=params)
             if not response.is_success:
@@ -82,17 +87,20 @@ class SteamGiftsClient:
                 logger.error(f"获取赠送列表失败\n{'-' * 5}响应体{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
                 break
             current_giveaway_datas = data.get("results")
-            # 如果当前页没有数据，说明已经过了赠送列表最后一页，应当退出循环
             if not current_giveaway_datas:
+                # 如果当前页没有数据，说明已经过了赠送列表最后一页，应当退出循环
                 break
+            if current_giveaway_datas[-1]["end_timestamp"] < lower_bound:
+                # 当前页的赠送列表的最晚结束时间小于lower_bound，不符合要求，应该舍弃，获取下一页
+                continue
             giveaway_datas.extend(current_giveaway_datas)
             page += 1
-            last_giveaway_end_timestamp = current_giveaway_datas[-1]["end_timestamp"]
+            first_giveaway_end_timestamp = current_giveaway_datas[0]["end_timestamp"]
         giveaways: list[Giveaway] = [data2giveaway(data) for data in giveaway_datas]
-        logger.debug(f"获取到{len(giveaways)}个赠送")
+        logger.info(f"获取到{len(giveaways)}个赠送")
         return giveaways
 
-    def insert_entry_in_giveaway_details(self, giveaway: Giveaway) -> None:
+    def insert_entry_in_giveaway_details(self, giveaway: Giveaway) -> bool:
         """
         在赠送详情页参赠
         :param giveaway: 赠送对象
@@ -101,9 +109,9 @@ class SteamGiftsClient:
         name_url = f"<{giveaway.name}> [{giveaway.link}]"
         form_data = {"xsrf_token": self._xsrf_token, "do": "entry_insert", "code": giveaway.code}
         response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data, headers={"Referer": giveaway.link})
-        self._common_operations4insert_entry(giveaway, logger, name_url, response)
+        return self._common_operations4insert_entry(giveaway, logger, name_url, response)
 
-    def delete_entry_in_giveaway_details(self, giveaway: Giveaway) -> None:
+    def delete_entry_in_giveaway_details(self, giveaway: Giveaway) -> bool:
         """
         在赠送详情页退出赠送
         :param giveaway: 赠送对象
@@ -112,9 +120,9 @@ class SteamGiftsClient:
         name_url = f"<{giveaway.name}> [{giveaway.link}]"
         form_data = {"xsrf_token": self._xsrf_token, "do": "entry_delete", "code": giveaway.code}
         response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data, headers={"Referer": giveaway.link})
-        self._common_operations4delete_entry(giveaway, logger, name_url, response)
+        return self._common_operations4delete_entry(giveaway, logger, name_url, response)
 
-    def insert_entry_in_homepage(self, giveaway: Giveaway) -> None:
+    def insert_entry_in_homepage(self, giveaway: Giveaway) -> bool:
         """
         在首页参赠
         :param giveaway: 赠送对象
@@ -123,9 +131,9 @@ class SteamGiftsClient:
         name_url = f"<{giveaway.name}> [{giveaway.link}]"
         form_data = {"xsrf_token": self._xsrf_token, "do": "entry_insert", "code": giveaway.code}
         response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data, multipart=True)
-        self._common_operations4insert_entry(giveaway, logger, name_url, response)
+        return self._common_operations4insert_entry(giveaway, logger, name_url, response)
 
-    def delete_entry_in_homepage(self, giveaway: Giveaway) -> None:
+    def delete_entry_in_homepage(self, giveaway: Giveaway) -> bool:
         """
         在首页退出赠送
         :param giveaway: 赠送对象
@@ -134,9 +142,10 @@ class SteamGiftsClient:
         name_url = f"<{giveaway.name}> [{giveaway.link}]"
         form_data = {"xsrf_token": self._xsrf_token, "do": "entry_delete", "code": giveaway.code}
         response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data, multipart=True)
-        self._common_operations4delete_entry(giveaway, logger, name_url, response)
+        return self._common_operations4delete_entry(giveaway, logger, name_url, response)
 
-    def _common_operations4insert_entry(self, giveaway: Giveaway, logger: logging.Logger, name_url: str, response: Response):
+    def _common_operations4insert_entry(self, giveaway: Giveaway, logger: logging.Logger, name_url: str,
+                                        response: Response) -> bool:
         """
         解析参赠响应，更新赠送状态，打印相应日志
         :param giveaway: 赠送对象
@@ -158,30 +167,39 @@ class SteamGiftsClient:
         # 6. 赠送已过期
         #    {"type":"error","msg":"Error","points":"154"} 可疑？
         if not response.content:
+            # todo 此处添加用户提示
             logger.warning("csrf_token错误，参赠失败")
             self.update_status()
-            return
+            return False
         data = response.json()
         if data["type"] == "success":
             giveaway.entered = True
-            self._common_operation4insert_delete("参加", name_url, giveaway, data, logger)
+            return self._common_operation4insert_delete("参加", name_url, giveaway, data, logger)
         elif data["type"] == "error":
             self.points = int(data["points"])
             if (msg := data.get("msg")) == "Not Enough Points":
+                # todo 此处添加用户提示
                 logger.warning(f"未能参加{name_url}: 点数不足，当前点数{self.points}，需要{giveaway.points}点数")
             elif msg == "Previously Won":
+                # todo 此处添加用户提示
                 logger.info(f"未能参加{name_url}: 之前已赢得此游戏")
             elif msg == "Exists in Account":
+                # todo 此处添加用户提示
                 logger.info(f"未能参加{name_url}: 已拥有此游戏")
             elif msg == "Error":
+                # todo 此处添加用户提示
                 logger.warning(f"未能参加{name_url}: 赠送过期或删除\n"
                                f"{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
             else:
+                # todo 此处添加用户提示
                 logger.error(f"未预期的未能参加{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
         else:
+            # todo 此处添加用户提示
             logger.error(f"未预期的未能参加{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
+        return False
 
-    def _common_operations4delete_entry(self, giveaway: Giveaway, logger: logging.Logger, name_url: str, response: Response):
+    def _common_operations4delete_entry(self, giveaway: Giveaway, logger: logging.Logger, name_url: str,
+                                        response: Response) -> bool:
         """
         解析退赠响应，更新赠送状态，打印相应日志
         :param giveaway: 赠送对象
@@ -197,29 +215,37 @@ class SteamGiftsClient:
         # 3. 赠送已过期
         #    {"type":"error","msg":"Error","points":"134"} 可疑？
         if not response.content:
+            # todo 此处添加用户提示
             logger.warning("csrf_token错误，退赠失败")
             self.update_status()
-            return
+            return False
         data = response.json()
         if data["type"] == "success":
             giveaway.entered = False
-            self._common_operation4insert_delete("退出", name_url, giveaway, data, logger)
+            return self._common_operation4insert_delete("退出", name_url, giveaway, data, logger)
         elif data["type"] == "error":
             self.points = int(data["points"])
+            # todo 此处添加用户提示
             logger.warning(f"退出{name_url}失败: 赠送过期或删除\n"
                            f"{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
         else:
+            # todo 此处添加用户提示
             logger.error(f"未预期的未能退出{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
+        return False
 
     def _common_operation4insert_delete(self, operation: Literal["参加", "退出"], name_url: str, giveaway: Giveaway,
-                                        data: dict[str, Any], logger: logging.Logger):
+                                        data: dict[str, Any], logger: logging.Logger) -> bool:
         self.points = int(data["points"])
         if "entry_count" in data:
             giveaway.entry_count = locale.atoi(data["entry_count"])
+            # todo 此处添加用户提示
             logger.info(f"成功{operation}{name_url}\n剩余点数{self.points:>4d}  Wilson评分{giveaway.wilson_score:>6.3f}  "
                         f"中奖概率{giveaway.winning_probability * 1000:>7.2f}‰  评级{giveaway.rank * 1000:>7.2f}")
+            return True
         else:
+            # todo 此处添加用户提示
             logger.warning(f"未能{operation}{name_url}: {'已参加' if operation == '参加' else '未参加'}")
+            return False
 
     def _load_config_session_id(self):
         """
