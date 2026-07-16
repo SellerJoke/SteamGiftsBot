@@ -92,8 +92,7 @@ class Giveaway(Base, IntPKMixin):
             return self.package.name
         elif hasattr(self, "_name"):
             return self._name
-        # noinspection PyTypeChecker
-        return None
+        raise Exception("赠送关联的游戏名称未设置")
 
     @name.setter
     def name(self, value: str):
@@ -103,7 +102,8 @@ class Giveaway(Base, IntPKMixin):
     def code(self) -> str:
         """赠送的code，可以唯一确定赠送，此值用于参加或退出赠送"""
         match = Giveaway._CODE_REGEX.match(self.link)
-        assert match, f"无法从{self.link}中提取code"
+        if not match:
+            raise Exception(f"无法从{self.link}中提取code")
         return match.group(1)
 
     @property

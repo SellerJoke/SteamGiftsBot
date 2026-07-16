@@ -27,15 +27,17 @@ class StatusIO:
     @classmethod
     def save_xsrf_token(cls, xsrf_token: str):
         """保存xsrf_token"""
-        assert cls._status is not None, "保存xsrf_token前必须先加载状态"
+        if cls._status is None:
+            raise Exception("保存xsrf_token前必须先加载状态")
         if cls._status["xsrf_token"] != xsrf_token:
             cls._status["xsrf_token"] = xsrf_token
             cls.__save()
 
     @classmethod
-    def save_points(cls, points: int, points_update_timestamp: int = None):
+    def save_points(cls, points: int, points_update_timestamp: int | None = None):
         """保存点数"""
-        assert cls._status is not None, "保存点数前必须先加载状态"
+        if cls._status is None:
+            raise Exception("保存点数前必须先加载状态")
         if points_update_timestamp is None:
             points_update_timestamp = int(time.time())
         if cls._status["points_update_timestamp"] != points_update_timestamp:
@@ -46,7 +48,8 @@ class StatusIO:
     @classmethod
     def __save(cls):
         """保存状态"""
-        assert cls._status is not None, "保存状态前必须先加载状态"
+        if cls._status is None:
+            raise Exception("保存状态前必须先加载状态")
         create_file_if_not_exists(cls._STATUS_PATH)
         with open(cls._STATUS_PATH, "wb") as f:
             dill.dump(cls._status, f)

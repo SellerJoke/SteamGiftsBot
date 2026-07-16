@@ -26,11 +26,17 @@ def data2user(data: UserData) -> User:
 
 
 def giveaway2app_info(giveaway: Giveaway) -> IdName:
-    assert giveaway.app_id is not None
+    if giveaway.app_id is None:
+        raise Exception("giveaway.app_id不能为空")
+    if giveaway.name is None:
+        raise Exception("giveaway.name不能为空")
     return IdName(id=giveaway.app_id, name=giveaway.name)
 
 def giveaway2package_info(giveaway: Giveaway) -> IdName:
-    assert giveaway.package_id is not None
+    if giveaway.package_id is None:
+        raise Exception("giveaway.package_id不能为空")
+    if giveaway.name is None:
+        raise Exception("giveaway.name不能为空")
     return IdName(id=giveaway.package_id, name=giveaway.name)
 
 def to_id_name(has_id_name: SteamApp | SteamPackage) -> IdName:
@@ -49,7 +55,8 @@ def entities2dict(entities: Iterable[T]) -> list[dict[str, Any]]:
     if len(entities) == 0:
         return []
     clazz = type(entities[0])
-    assert hasattr(clazz, "__table__"), "entities中的元素必须是sqlalchemy.orm.DeclarativeBase的子类"
+    if not hasattr(clazz, "__table__"):
+        raise Exception("entities中的元素必须是sqlalchemy.orm.DeclarativeBase的子类")
     result = []
     for entity in entities:
         element = {}

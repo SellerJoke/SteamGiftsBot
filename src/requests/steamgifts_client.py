@@ -303,7 +303,8 @@ class SteamGiftsClient:
 
     def _extract_status(self):
         """从首页提取用户状态，包括积分和xsrf token"""
-        assert self._index_soup is not None
+        if self._index_soup is None:
+            raise Exception("未获取到首页内容")
         self._xsrf_token = self._extra_xsrf_token(self._index_soup)
         self.points = self._extract_points(self._index_soup)
 
