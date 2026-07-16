@@ -10,6 +10,10 @@ if __name__ == "__main__":
     logger = logging.getLogger("src.main")
     with Bot() as bot:
         while True:
-            bot.work()
+            try:
+                bot.work()
+            except Exception as e:
+                logger.exception("发生异常")
+                raise e
             logger.info("休眠1小时")
             time.sleep(60 * 60)

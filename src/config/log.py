@@ -2,6 +2,7 @@ import logging.handlers
 import os
 import sys
 from datetime import datetime
+from typing import Any
 
 from src.const.path import ROOT_DIR
 from src.persistence.config_io import ConfigIO
@@ -53,20 +54,19 @@ class _DateTimeRotatingFileHandler(logging.handlers.RotatingFileHandler):
 
 def setup_logging():
     """配置日志"""
-    config = ConfigIO.load()
-    is_debug: bool = config.get("debug", False)
-
-    handlers = [logging.StreamHandler(sys.stdout)]
-    if is_debug:
-        handlers.append(_DateTimeRotatingFileHandler(base_dir=os.path.join(ROOT_DIR, "log"), max_bytes=16 * 1024 * 1024,
-                                                     backup_count=49, encoding="utf-8"))
-
+    config: dict[str, Any] = ConfigIO.load()
+    log_config: dict[str, Any] = config.get("logging", {})
+    destinations: list[str] = log_config.get("destinations", [])
+    handlers = {
+        "console": logging.StreamHandler(sys.stdout),
+        "file": _DateTimeRotatingFileHandler(base_dir=os.path.join(ROOT_DIR, "log"), max_bytes=16 * 1024 * 1024,
+                                             backup_count=49, encoding="utf-8"),
+    }
+    handlers = [handlers[dest] for dest in destinations]
     # noinspection SpellCheckingInspection
-    logging.basicConfig(level=logging.WARNING, handlers=handlers,
-                        format="%(asctime)s.%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(name)s: %(message)s",
-                        datefmt="%Y-%m-%d %H:%M:%S")
-    if is_debug:
+    logging.basicConfig(level=log_config.get("level", "INFO"), handlers=handlers, datefmt="%Y-%m-%d %H:%M:%S",
+                        format="%(asctime)s.%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(name)s: %(message)s")
+    if log_config.get("show-sql", False):
         logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+    if log_config.get("debug", False):
         logging.getLogger("src").setLevel(logging.DEBUG)
-    else:
-        logging.getLogger("src").setLevel(logging.INFO)
