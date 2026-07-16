@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Iterable
 
 from src.object.auxiliary import IdName
@@ -52,8 +53,8 @@ class SteamClient:
             app_details = data[app_id]["data"]
             steam_app = SteamApp(id=_id, name=app_details["name"], type=app_details["type"])
         else:
-            logger.warning(f"Steam禁止所在区域访问App {name_id}，详情为空")
             steam_app = SteamApp(id=_id, name=name)
+            logger.warning(f"Steam禁止所在区域访问App {name_id}，详情为空")
 
         response = self._client.get(SteamClient._APP_VIEWS_URL.format(_id), params=SteamClient._APP_VIEWS_PARAMS)
         if response.is_success:
@@ -61,7 +62,13 @@ class SteamClient:
             if data["success"] == 1:
                 steam_app.total_positive = data["query_summary"]["total_positive"]
                 steam_app.total_reviews = data["query_summary"]["total_reviews"]
-        logger.debug(f"成功获取{steam_app}")
+                steam_app.update_timestamp = int(time.time())
+                logger.info(f"成功获取{steam_app}")
+            else:
+                steam_app.total_positive = 0
+                steam_app.total_reviews = 0
+                steam_app.update_timestamp = 0
+                logger.warning(f"获取Steam App {name_id}评价失败")
         return steam_app
 
     def fetch_steam_apps(self, app_infos: Iterable[IdName]) -> list[SteamApp]:
@@ -98,7 +105,7 @@ class SteamClient:
         package_details = data[package_id]["data"]
         steam_package = SteamPackage(_id=_id, name=package_details["name"],
                                      app_infos=dict_list2id_name_list(package_details["apps"]))
-        logger.debug(f"成功获取{steam_package}")
+        logger.info(f"成功获取{steam_package}")
         return steam_package
 
     def fetch_steam_packages(self, package_infos: Iterable[IdName]) -> list[SteamPackage]:
