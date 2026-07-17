@@ -167,7 +167,6 @@ class SteamGiftsClient:
         # 6. 赠送已过期
         #    {"type":"error","msg":"Error","points":"154"} 可疑？
         if not response.content:
-            # todo 此处添加用户提示
             logger.warning("csrf_token错误，参赠失败")
             self.update_status()
             return False
@@ -178,23 +177,17 @@ class SteamGiftsClient:
         elif data["type"] == "error":
             self.points = int(data["points"])
             if (msg := data.get("msg")) == "Not Enough Points":
-                # todo 此处添加用户提示
                 logger.warning(f"未能参加{name_url}: 点数不足，当前点数{self.points}，需要{giveaway.points}点数")
             elif msg == "Previously Won":
-                # todo 此处添加用户提示
                 logger.info(f"未能参加{name_url}: 之前已赢得此游戏")
             elif msg == "Exists in Account":
-                # todo 此处添加用户提示
                 logger.info(f"未能参加{name_url}: 已拥有此游戏")
             elif msg == "Error":
-                # todo 此处添加用户提示
                 logger.warning(f"未能参加{name_url}: 赠送过期或删除\n"
                                f"{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
             else:
-                # todo 此处添加用户提示
                 logger.error(f"未预期的未能参加{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
         else:
-            # todo 此处添加用户提示
             logger.error(f"未预期的未能参加{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
         return False
 
@@ -215,7 +208,6 @@ class SteamGiftsClient:
         # 3. 赠送已过期
         #    {"type":"error","msg":"Error","points":"134"} 可疑？
         if not response.content:
-            # todo 此处添加用户提示
             logger.warning("csrf_token错误，退赠失败")
             self.update_status()
             return False
@@ -225,11 +217,9 @@ class SteamGiftsClient:
             return self._common_operation4insert_delete("退出", name_url, giveaway, data, logger)
         elif data["type"] == "error":
             self.points = int(data["points"])
-            # todo 此处添加用户提示
             logger.warning(f"退出{name_url}失败: 赠送过期或删除\n"
                            f"{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
         else:
-            # todo 此处添加用户提示
             logger.error(f"未预期的未能退出{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
         return False
 
@@ -238,12 +228,10 @@ class SteamGiftsClient:
         self.points = int(data["points"])
         if "entry_count" in data:
             giveaway.entry_count = locale.atoi(data["entry_count"])
-            # todo 此处添加用户提示
             logger.info(f"成功{operation}{name_url}\n剩余点数{self.points:>4d}  Wilson评分{giveaway.wilson_score:>6.3f}  "
                         f"中奖概率{giveaway.winning_probability * 1000:>7.2f}‰  评级{giveaway.rank * 1000:>7.2f}")
             return True
         else:
-            # todo 此处添加用户提示
             logger.warning(f"未能{operation}{name_url}: {'已参加' if operation == '参加' else '未参加'}")
             return False
 

@@ -1,7 +1,13 @@
 import logging
 import time
+from datetime import datetime
 from typing import cast, Iterable, Any
 
+from rich import box
+from rich.console import Console
+from rich.style import Style
+from rich.table import Table
+from rich.text import Text
 from sqlalchemy import update, insert
 
 from src.object.auxiliary import IdName
@@ -25,6 +31,7 @@ class Bot:
             Bot.LOGGER = logging.getLogger(__name__).getChild(Bot.__name__)
         self._steam_client = SteamClient()
         self._steamgifts_client = SteamGiftsClient()
+        self._console = Console()
 
     def __enter__(self):
         return self
@@ -37,9 +44,11 @@ class Bot:
         """一轮参加/退出赠送的工作流程"""
         logger: logging.Logger = Bot.LOGGER.getChild(Bot.work.__name__)
         points_lt_50: bool = self._steamgifts_client.points < 50
-        # todo 此处添加用户提示
-        logger.info(f"工作流程开始，SteamGifts点数: {self._steamgifts_client.points} {'< 50，退出工作流程' if points_lt_50 else ''}")
-        if points_lt_50:
+        logger.info(f"工作流程开始，SteamGifts点数: {self._steamgifts_client.points} {'< 50，跳过本轮工作流程' if points_lt_50 else ''}")
+        if not points_lt_50:
+            self._console.print(f"开始参加/退出赠送的工作流程，SteamGifts点数：{self._steamgifts_client.points}")
+        else:
+            self._console.print(f"SteamGifts点数：{self._steamgifts_client.points}，不足50，跳过本轮工作流程")
             return
         # 从数据库获取未结束的赠送列表，按结束时间排序（这也是SteamGifts网站返回的赠送列表的排序方式）
         queried_giveaways: list[Giveaway] = giveaway_io.list_open_giveaways()
@@ -69,7 +78,7 @@ class Bot:
         # 把所有赠送和其creator保存到数据库，不保存它关联的SteamApp和SteamPackage，因为在获取新SteamApp和SteamPackage时已经保存过了
         Bot._save_giveaways(all_fetched_giveaways, queried_giveaways)
         self._steamgifts_client.save_status()
-        # todo 此处添加用户提示
+        self._console.print(f"本轮共参加{insert_count}个赠送，退出{delete_count}个赠送")
         logger.info(f"工作流程结束，参加{insert_count}个赠送，退出{delete_count}个赠送")
 
     def _merge_and_update_giveaways(self, local_giveaways: Iterable[Giveaway], fetched_giveaways: list[Giveaway]) -> list[Giveaway]:
@@ -227,6 +236,7 @@ class Bot:
         negative_index: int = -1
         insert_count: int = 0
         delete_count: int = 0
+        table = Bot._create_table()
         while positive_index - negative_index < len(giveaways):
             # 从前往后找到第一个未参加的高评级赠送a
             while positive_index - negative_index < len(giveaways) and giveaways[positive_index].entered:
@@ -240,6 +250,7 @@ class Bot:
                 if (quiting_giveaway := giveaways[negative_index]).entered:
                     result: bool = self._steamgifts_client.delete_entry_in_giveaway_details(quiting_giveaway)
                     if result:
+                        Bot._add_row(table, quiting_giveaway, self._steamgifts_client.points)
                         delete_count += 1
                 negative_index -= 1
             # 如果退出低评级赠送后点数仍不足以参加赠送a，说明所有已参加的赠送的评级均大于未参加的赠送的评级，不用再参赠，退出循环
@@ -248,9 +259,11 @@ class Bot:
             # 如果点数足够，则参加赠送a
             result: bool = self._steamgifts_client.insert_entry_in_giveaway_details(entering_giveaway)
             if result:
+                Bot._add_row(table, entering_giveaway, self._steamgifts_client.points)
                 insert_count += 1
             # 参加赠送a后，正数下标加1
             positive_index += 1
+        self._console.print(table)
         return insert_count, delete_count
 
     @staticmethod
@@ -290,6 +303,43 @@ class Bot:
                 session.execute(update(Giveaway), updating_giveaway_fields)
             if old_giveaway_fields:
                 session.execute(update(Giveaway), old_giveaway_fields)
+
+    @staticmethod
+    def _create_table() -> Table:
+        """初始化要打印的赠送表。"""
+        table = Table(title=f"本轮赠送统计 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", box=box.SIMPLE)
+        table.add_column("赠送ID", width=8)
+        # table.add_column("游戏名称", max_width=30, justify="left", overflow="crop")
+        table.add_column("游戏名称", max_width=30, justify="left", overflow="fold")
+        table.add_column("Wilson score", width=12, justify="right")
+        table.add_column("获奖概率", width=9, justify="right")
+        table.add_column("评级", max_width=8, justify="right")
+        table.add_column("操作", width=4, justify="left")
+        table.add_column("剩余点数", max_width=8, justify="right")
+        return table
+
+    @staticmethod
+    def _add_row(table: Table, giveaway: Giveaway, points: int):
+        """添加赠送行到表格。"""
+        if giveaway.wilson_score > 0.9:
+            score_color = "bright_blue"
+        elif giveaway.wilson_score > 0.8:
+            score_color = "bright_green"
+        elif giveaway.wilson_score > 0.6:
+            score_color = "green"
+        elif giveaway.wilson_score > 0.4:
+            score_color = "yellow"
+        else:
+            score_color = "red"
+        table.add_row(
+            str(giveaway.id),
+            giveaway.name,
+            Text(text=f"{giveaway.wilson_score:>5.3f}", style=Style(color=score_color)),
+            f"{giveaway.winning_probability * 1000:>7.2f}‰",
+            f"{giveaway.rank * 1000:>7.2f}",
+            "参加" if giveaway.entered else "退出",
+            f"{points:>3d}"
+        )
 
 
 if __name__ == '__main__':
