@@ -1,6 +1,5 @@
 import logging
 import time
-from datetime import datetime
 from typing import cast, Iterable, Any
 
 from rich import box
@@ -306,9 +305,8 @@ class Bot:
     @staticmethod
     def _create_table() -> Table:
         """初始化要打印的赠送表。"""
-        table = Table(title=f"本轮赠送统计 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", box=box.SIMPLE)
+        table = Table(title="赠送统计", box=box.SIMPLE)
         table.add_column("赠送ID", width=8)
-        # table.add_column("游戏名称", max_width=30, justify="left", overflow="crop")
         table.add_column("游戏名称", max_width=30, justify="left", overflow="fold")
         table.add_column("Wilson score", width=12, justify="right")
         table.add_column("获奖概率", width=9, justify="right")
