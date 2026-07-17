@@ -7,5 +7,5 @@ __pycache__/
 /log/
 /resources/persistence/
 /resources/status.dill
-test
+*test*
 *TODO*
