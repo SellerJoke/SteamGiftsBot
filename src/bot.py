@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import cast, Iterable, Any
 
 from rich import box
-from rich.console import Console
 from rich.style import Style
 from rich.table import Table
 from rich.text import Text
@@ -20,6 +19,7 @@ from src.persistence.base_db_io import db_session
 from src.requests.steam_client import SteamClient
 from src.requests.steamgifts_client import SteamGiftsClient
 from src.util.convertor import giveaway2app_info, to_id_name, entities2dict, giveaway2package_info
+from src.util.shared_objects import CONSOLE
 
 
 class Bot:
@@ -31,7 +31,6 @@ class Bot:
             Bot.LOGGER = logging.getLogger(__name__).getChild(Bot.__name__)
         self._steam_client = SteamClient()
         self._steamgifts_client = SteamGiftsClient()
-        self._console = Console(log_time_format="[%Y-%m-%d %H:%M:%S] ", log_path=False)
 
     def __enter__(self):
         return self
@@ -46,9 +45,9 @@ class Bot:
         points_lt_50: bool = self._steamgifts_client.points < 50
         logger.info(f"工作流程开始，SteamGifts点数: {self._steamgifts_client.points} {'< 50，跳过本轮工作流程' if points_lt_50 else ''}")
         if not points_lt_50:
-            self._console.log(f"开始参加/退出赠送的工作流程，SteamGifts点数：{self._steamgifts_client.points}")
+            CONSOLE.log(f"开始参加/退出赠送的工作流程，SteamGifts点数：{self._steamgifts_client.points}")
         else:
-            self._console.log(f"SteamGifts点数：{self._steamgifts_client.points}，不足50，跳过本轮工作流程")
+            CONSOLE.log(f"SteamGifts点数：{self._steamgifts_client.points}，不足50，跳过本轮工作流程")
             return
         # 从数据库获取未结束的赠送列表，按结束时间排序（这也是SteamGifts网站返回的赠送列表的排序方式）
         queried_giveaways: list[Giveaway] = giveaway_io.list_open_giveaways()
@@ -78,7 +77,7 @@ class Bot:
         # 把所有赠送和其creator保存到数据库，不保存它关联的SteamApp和SteamPackage，因为在获取新SteamApp和SteamPackage时已经保存过了
         Bot._save_giveaways(all_fetched_giveaways, queried_giveaways)
         self._steamgifts_client.save_status()
-        self._console.log(f"本轮共参加{insert_count}个赠送，退出{delete_count}个赠送")
+        CONSOLE.log(f"本轮共参加{insert_count}个赠送，退出{delete_count}个赠送")
         logger.info(f"工作流程结束，参加{insert_count}个赠送，退出{delete_count}个赠送")
 
     def _merge_and_update_giveaways(self, local_giveaways: Iterable[Giveaway], fetched_giveaways: list[Giveaway]) -> list[Giveaway]:
@@ -263,7 +262,7 @@ class Bot:
                 insert_count += 1
             # 参加赠送a后，正数下标加1
             positive_index += 1
-        self._console.print(table)
+        CONSOLE.print(table)
         return insert_count, delete_count
 
     @staticmethod
