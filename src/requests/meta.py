@@ -1,4 +1,5 @@
 import logging
+import random
 import time
 
 _MODULE_LOGGER: logging.Logger = logging.getLogger(__name__)
@@ -118,3 +119,20 @@ def retry_on_502(func):
 		else:
 			raise Exception(f"连续收到{max_times}次502响应")
 	return wrapper
+
+
+def delay_random(interval: float | callable = 1):
+	"""装饰器：让执行的函数在[0, interval]秒内随机休眠"""
+	if callable(interval):
+		func1 = interval
+		def wrapper1(*args, **kwargs):
+			time.sleep(random.uniform(0, 1))
+			return func1(*args, **kwargs)
+		return wrapper1
+	else:
+		def decorator(func2):
+			def wrapper2(*args, **kwargs):
+				time.sleep(random.uniform(0, interval))
+				return func2(*args, **kwargs)
+			return wrapper2
+		return decorator

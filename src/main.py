@@ -1,4 +1,5 @@
 import logging
+import random
 import time
 
 from src.bot import Bot
@@ -16,6 +17,7 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.exception("发生异常")
                 raise e
-            logger.info("休眠1小时")
-            CONSOLE.log("休眠1小时")
-            time.sleep(60 * 60)
+            logger.info("休眠约1小时")
+            CONSOLE.log("休眠约1小时")
+            # 随机休眠45分钟到75分钟
+            time.sleep((60 + random.uniform(-15, 15)) * 60)

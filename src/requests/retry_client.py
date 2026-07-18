@@ -22,7 +22,7 @@ from httpx_curl_cffi import CurlTransport
 from src.config.config import APP_NAME
 from src.persistence.cookie_io import CookieIO
 from src.requests.header import Header
-from src.requests.meta import WebsiteThrottle, retry_on_exception, retry_on_502
+from src.requests.meta import WebsiteThrottle, retry_on_exception, retry_on_502, delay_random
 from src.util.file import create_file_if_not_exists
 
 
@@ -91,6 +91,7 @@ class RetryClient(Client):
         super().close()
 
     @override
+    @delay_random(2)
     @retry_on_502
     @retry_on_exception(exceptions=ConnectError, sleep_interval=20)
     @retry_on_exception(exceptions=TimeoutException)
@@ -117,6 +118,7 @@ class RetryClient(Client):
                            follow_redirects=follow_redirects, timeout=timeout, extensions=extensions)
 
     @override
+    @delay_random(2)
     @retry_on_502
     @retry_on_exception(exceptions=ConnectError, sleep_interval=20)
     @retry_on_exception(exceptions=TimeoutException)
