@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import cast, Iterable, Any
 
 from rich import box
@@ -41,40 +40,18 @@ class Bot:
     def work(self):
         """一轮参加/退出赠送的工作流程"""
         logger: logging.Logger = Bot.LOGGER.getChild(Bot.work.__name__)
-        points_lt_50: bool = self._steamgifts_client.points < 50
-        logger.info(f"工作流程开始，SteamGifts点数: {self._steamgifts_client.points} {'< 50，跳过本轮工作流程' if points_lt_50 else ''}")
-        if not points_lt_50:
-            CONSOLE.log(f"开始参加/退出赠送的工作流程，SteamGifts点数：{self._steamgifts_client.points}")
-        else:
-            CONSOLE.log(f"SteamGifts点数：{self._steamgifts_client.points}，不足50，跳过本轮工作流程")
-            return
+        logger.info(f"工作流程开始，SteamGifts点数: {self._steamgifts_client.points}")
+        CONSOLE.log(f"开始参加/退出赠送，SteamGifts点数：{self._steamgifts_client.points}")
         # 从数据库获取未结束的赠送列表，按结束时间排序（这也是SteamGifts网站返回的赠送列表的排序方式）
         queried_giveaways: list[Giveaway] = giveaway_io.list_open_giveaways()
-        # end_timestamp变量用于确定获取的赠送的最晚结束时间
-        end_timestamp_lower_bound: int = int(time.time())
-        all_giveaways: list[Giveaway] = queried_giveaways
-        all_fetched_giveaways: list[Giveaway] = []
-        insert_count: int = 0
-        delete_count: int = 0
-        # 当账户内点数大于50时，开始一轮参加/退出赠送的工作流程
-        # 为什么是50？因为SteamGifts的单个赠送所需的最大点数就是50
-        while self._steamgifts_client.points >= 50:
-            # 从SteamGifts网站获取一定量赠送
-            fetched_giveaways: list[Giveaway] = self._steamgifts_client.fetch_giveaways(end_timestamp_lower_bound)
-            # 如果获取到的赠送为空，说明没有新礼物了，退出循环
-            if not fetched_giveaways:
-                break
-            # 找到最晚的结束时间，作为下次获取SteamGifts赠送列表的最早结束时间
-            end_timestamp_lower_bound = fetched_giveaways[-1].end_timestamp
-            all_fetched_giveaways.extend(fetched_giveaways)
-            # 合并数据库中查询到的赠送列表和从SteamGifts网站获取到的赠送列表
-            all_giveaways = self._merge_and_update_giveaways(all_giveaways, fetched_giveaways)
-            # 根据赠送的价值和中奖概率，参与或退出赠送
-            current_insert_count, current_delete_count = self.insert_delete_entries(all_giveaways)
-            insert_count += current_insert_count
-            delete_count += current_delete_count
+        # 从SteamGifts网站获取所有赠送列表
+        fetched_giveaways: list[Giveaway] = self._steamgifts_client.fetch_all_giveaways()
+        # 合并数据库中查询到的赠送列表和从SteamGifts网站获取到的赠送列表
+        all_giveaways = self._merge_and_update_giveaways(queried_giveaways, fetched_giveaways)
+        # 根据赠送的评价和中奖概率，参与或退出赠送
+        insert_count, delete_count = self.insert_delete_entries(all_giveaways)
         # 把所有赠送和其creator保存到数据库，不保存它关联的SteamApp和SteamPackage，因为在获取新SteamApp和SteamPackage时已经保存过了
-        Bot._save_giveaways(all_fetched_giveaways, queried_giveaways)
+        Bot._save_giveaways(fetched_giveaways, queried_giveaways)
         self._steamgifts_client.save_status()
         CONSOLE.log(f"本轮共参加{insert_count}个赠送，退出{delete_count}个赠送")
         logger.info(f"工作流程结束，参加{insert_count}个赠送，退出{delete_count}个赠送")
@@ -227,7 +204,7 @@ class Bot:
     def insert_delete_entries(self, giveaways: list[Giveaway]) -> tuple[int, int]:
         """根据赠送的评级，参加或退出列表中的赠送"""
         # 将赠送按照评级逆序排列，评级越高越值得参加，评级越低越不值得参加
-        giveaways.sort(key=lambda g: g.rank, reverse=True)
+        giveaways.sort(key=lambda giveaway: giveaway.rank, reverse=True)
         # 正数下标：下一个将要参加的赠送的下标
         positive_index: int = 0
         # 负数下标：下一个将要退出的赠送的下标

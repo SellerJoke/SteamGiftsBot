@@ -23,7 +23,6 @@ from src.util.convertor import data2giveaway
 class SteamGiftsClient:
     """与SteamGifts进行请求交互的客户端"""
     LOGGER: logging.Logger = None
-    _END_TIMESTAMP_INTERVAL: int = 72 * 60 * 60  # 每次获取3天时间范围内的赠送
     _STEAMGIFTS_HOMEPAGE_URL = "https://www.steamgifts.com/"
     _GIVEAWAY_LIST_URL = "https://www.steamgifts.com/giveaways/search"
     _INSERT_DELETE_ENTRY_URL = "https://www.steamgifts.com/ajax.php"
@@ -59,43 +58,31 @@ class SteamGiftsClient:
         self.save_status()
         self._client.close()
 
-    def fetch_giveaways(self, end_timestamp_lower_bound: int = 0) -> list[Giveaway]:
+    def fetch_all_giveaways(self) -> list[Giveaway]:
         """
-        从SteamGifts网站获取赠送列表，尽量保证获取的赠送的结束时间在[end_timestamp_lower_bound, end_timestamp_lower_bound + _END_TIMESTAMP_INTERVAL]之间
-        :param end_timestamp_lower_bound: 用于确定获取赠送的最晚结束时间
+        从SteamGifts网站获取所有赠送列表
         :return: 赠送列表
         """
-        logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.fetch_giveaways.__name__)
-        logger.info("获取赠送列表")
-        lower_bound: int = max(end_timestamp_lower_bound, int(time.time()))
-        upper_bound: int = lower_bound + SteamGiftsClient._END_TIMESTAMP_INTERVAL
+        logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.fetch_all_giveaways.__name__)
+        logger.info("请求所有赠送列表")
         giveaway_datas: list[GiveawayData] = []
-        page: int = 1
-        first_giveaway_end_timestamp: int = 0
-        while first_giveaway_end_timestamp <= upper_bound:
-            # 若当前页的赠送列表的结束时间范围在[lower_bound,upper_bound]左侧（不重叠）时，该赠送列表不符合要求，应该舍弃，前往下一页；
-            # 若当前页的赠送列表的结束时间范围与[lower_bound,upper_bound]重叠时，该页赠送符合要求，应该保留；
-            # 若当前页的赠送列表的结束时间范围在[lower_bound,upper_bound]右侧（不重叠）时，应当退出循环。
-            params = {"format": "json", "page": page}
+        params = {"format": "json", "page": 1}
+        while True:
             response = self._client.get(SteamGiftsClient._GIVEAWAY_LIST_URL, params=params)
             if not response.is_success:
                 logger.error("请求赠送列表失败")
                 response.raise_for_status()
                 break
             data = response.json()
-            if not data.get("success"):
+            if not data["success"]:
                 logger.error(f"获取赠送列表失败\n{'-' * 5}响应体{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
                 break
-            current_giveaway_datas = data.get("results")
-            if not current_giveaway_datas:
-                # 如果当前页没有数据，说明已经过了赠送列表最后一页，应当退出循环
-                break
-            if current_giveaway_datas[-1]["end_timestamp"] < lower_bound:
-                # 当前页的赠送列表的最晚结束时间小于lower_bound，不符合要求，应该舍弃，获取下一页
-                continue
+            current_giveaway_datas = data["results"]
             giveaway_datas.extend(current_giveaway_datas)
-            page += 1
-            first_giveaway_end_timestamp = current_giveaway_datas[0]["end_timestamp"]
+            if len(current_giveaway_datas) < data["per_page"]:
+                # 如果当前页数据小于per_page，说明已经到达赠送列表最后一页，应当退出循环
+                break
+            params["page"] += 1
         giveaways: list[Giveaway] = [data2giveaway(data) for data in giveaway_datas]
         logger.info(f"获取到{len(giveaways)}个赠送")
         return giveaways
@@ -183,7 +170,7 @@ class SteamGiftsClient:
             elif msg == "Exists in Account":
                 logger.info(f"未能参加{name_url}: 已拥有此游戏")
             elif msg == "Error":
-                logger.warning(f"未能参加{name_url}: 赠送过期或删除\n"
+                logger.warning(f"未能参加{name_url}: 创建者不能参加或赠送过期/删除\n"
                                f"{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
             else:
                 logger.error(f"未预期的未能参加{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
