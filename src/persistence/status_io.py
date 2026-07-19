@@ -10,7 +10,7 @@ from src.util.file import create_file_if_not_exists
 
 class StatusIO:
     """读写应用状态的类"""
-    _STATUS_PATH: Path = Path(ROOT_DIR) / "resources" / "persistence" / "status.dill"
+    _STATUS_PATH: Path = ROOT_DIR / "resources" / "persistence" / "status.dill"
     _DEFAULT_STATUS: Status = Status(points=None, points_update_timestamp=None, xsrf_token=None)
     _status: Status = None
 

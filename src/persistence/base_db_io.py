@@ -9,7 +9,7 @@ from src.object.persistent.base_entity import T, Base
 from src.util.convertor import entities2dict
 from src.util.file import create_dir_if_not_exists
 
-_db_path: Path = Path(ROOT_DIR) / "resources" / "persistence" / "steamgifts_bot.sqlite"
+_db_path: Path = ROOT_DIR / "resources" / "persistence" / "steamgifts_bot.sqlite"
 _db_engine = create_engine(f"sqlite:///{_db_path}")
 # 创建数据库session maker，用于创建数据库会话
 # 参数expire_on_commit=False：在会话结束后，将结果保留在内存中，而不是再次从数据库中查询（会话结束后再次查询会抛出异常）

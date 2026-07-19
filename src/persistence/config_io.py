@@ -10,7 +10,7 @@ from src.const.path import ROOT_DIR
 
 class ConfigIO:
     """读取配置文件的类"""
-    FILE_PATH: Path = Path(ROOT_DIR) / "resources" / "config.yml"
+    FILE_PATH: Path = ROOT_DIR / "resources" / "config.yml"
     _DEFAULT_CONFIG: dict[str, Any] = {
         "debug": False,
         "PHPSESSID": None

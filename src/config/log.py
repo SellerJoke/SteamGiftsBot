@@ -2,6 +2,8 @@ import logging.handlers
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+from time import strftime
 from typing import Any
 
 from src.const.path import ROOT_DIR
@@ -10,7 +12,7 @@ from src.util.file import create_dir_if_not_exists
 
 
 class _DateTimeRotatingFileHandler(logging.handlers.RotatingFileHandler):
-    def __init__(self, base_dir, mode: str='a', max_bytes: int=0, backup_count: int=0, encoding: str | None=None,
+    def __init__(self, base_dir: Path | str, mode: str='a', max_bytes: int=0, backup_count: int=0, encoding: str | None=None,
                  delay: bool=False, errors: str | None=None):
         """
         自定义滚动日志处理器：
@@ -18,10 +20,10 @@ class _DateTimeRotatingFileHandler(logging.handlers.RotatingFileHandler):
         - 达到 max_bytes时自动滚动，新建一个以当前时间命名的文件
         - backup_count=0时永久保留所有历史文件
         """
-        self.base_dir = base_dir
+        self.base_dir: Path = Path(base_dir)
         create_dir_if_not_exists(base_dir)
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        init_file = os.path.join(base_dir, f"{current_time}.log")
+        init_file = self.base_dir / f"{current_time}.log"
         super().__init__(init_file, mode=mode, maxBytes=max_bytes, backupCount=backup_count, encoding=encoding,
                          delay=delay, errors=errors)
 
@@ -31,9 +33,7 @@ class _DateTimeRotatingFileHandler(logging.handlers.RotatingFileHandler):
             self.stream = None
 
         # 关键：滚动时用"当前时间"作为新日志文件的文件名
-        self.baseFilename = os.path.abspath(
-            os.path.join(self.base_dir, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-        )
+        self.baseFilename = str(self.base_dir / f"{strftime('%Y%m%d_%H%M%S')}.log")
 
         # 不做旧文件的重命名/删除，每个滚动文件都保留自己的时间戳文件名
         # 如果设置了 backupCount > 0，则按创建时间删除最旧的文件

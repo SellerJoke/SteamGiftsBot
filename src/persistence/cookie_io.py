@@ -13,7 +13,7 @@ class CookieIO:
     """读取和保存Cookie的类"""
     LOGGER: logging.Logger = logging.getLogger(__name__).getChild("CookieIO")
     # cookie文件保存在项目下的路径
-    __COOKIE_PATH: Path = Path(ROOT_DIR) / "resources" / "persistence" / "cookies.dill"
+    __COOKIE_PATH: Path = ROOT_DIR / "resources" / "persistence" / "cookies.dill"
     # Cookie保存时间间隔：10分钟（暂定）
     __COOKIE_SAVE_INTERVAL: int = 10 * 60
     # 上次保存Cookie的时间
