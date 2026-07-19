@@ -228,9 +228,9 @@ class Bot:
                 gaining_points: int = 0  # 退出quiting_giveaways后点数增加的量
                 while self._steamgifts_client.points + gaining_points < entering_giveaway.points and \
                         positive_index - negative_index < len(giveaways):
-                    # 从后往前扫描，找到所有已参加的低评级赠送，如果退出这些赠送后点数足够参加赠送a，
+                    # 从后往前扫描，找到所有已参加的低评级赠送，如果退出这些赠送后总点数足够参加赠送a，
                     # 那就把这些赠送添加到quiting_giveaways，以备后续退出这些赠送
-                    if (quiting_giveaway := giveaways[negative_index]).entered:
+                    if (quiting_giveaway := giveaways[negative_index]).entered and quiting_giveaway.points > 0:
                         quiting_giveaways.append(quiting_giveaway)
                         gaining_points += quiting_giveaway.points
                     negative_index -= 1
@@ -239,7 +239,7 @@ class Bot:
                     break
                 # 执行退出赠送操作
                 for quiting_giveaway in quiting_giveaways:
-                    result: bool = self._steamgifts_client.delete_entry_in_giveaway_details(quiting_giveaway)
+                    result: bool = self._steamgifts_client.toggle_entered(quiting_giveaway)
                     if result:
                         Bot._add_row(table, quiting_giveaway, self._steamgifts_client.points)
                         delete_count += 1

@@ -1,7 +1,6 @@
 import locale
 import logging
 import time
-from typing import Any, Literal
 
 from bs4 import BeautifulSoup, Tag
 from httpx import Response
@@ -75,7 +74,8 @@ class SteamGiftsClient:
                 break
             data = response.json()
             if not data["success"]:
-                logger.error(f"获取赠送列表失败\n{'-' * 5}响应体{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
+                line: str = "-" * 7
+                logger.error(f"获取赠送列表失败\n{line}响应体开始{line}\n{data}\n{line}响应体结束{line}")
                 break
             current_giveaway_datas = data["results"]
             giveaway_datas.extend(current_giveaway_datas)
@@ -87,140 +87,111 @@ class SteamGiftsClient:
         logger.info(f"获取到{len(giveaways)}个赠送")
         return giveaways
 
-    def insert_entry_in_giveaway_details(self, giveaway: Giveaway) -> bool:
+    def toggle_entered(self, giveaway: Giveaway) -> bool:
         """
-        在赠送详情页参赠
+        反转赠送的状态：如果已参加，就退出，如果未参加，就参加
         :param giveaway: 赠送对象
+        :return: 是否成功
         """
-        logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.insert_entry_in_giveaway_details.__name__)
-        name_url = f"<{giveaway.name}> [{giveaway.link}]"
-        form_data = {"xsrf_token": self._xsrf_token, "do": "entry_insert", "code": giveaway.code}
-        response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data, headers={"Referer": giveaway.link})
-        return self._common_operations4insert_entry(giveaway, logger, name_url, response)
+        return self.toggle_entered_in_homepage(giveaway)
 
-    def delete_entry_in_giveaway_details(self, giveaway: Giveaway) -> bool:
+    def toggle_entered_in_giveaway_details(self, giveaway: Giveaway) -> bool:
         """
-        在赠送详情页退出赠送
+        反转赠送的状态：如果已参加，就退出，如果未参加，就参加
         :param giveaway: 赠送对象
+        :return: 是否成功
         """
-        logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.delete_entry_in_giveaway_details.__name__)
+        logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.toggle_entered_in_giveaway_details.__name__)
         name_url = f"<{giveaway.name}> [{giveaway.link}]"
-        form_data = {"xsrf_token": self._xsrf_token, "do": "entry_delete", "code": giveaway.code}
-        response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data, headers={"Referer": giveaway.link})
-        return self._common_operations4delete_entry(giveaway, logger, name_url, response)
+        inserting = not giveaway.entered    # 是否参加赠送的标识：如果未参加赠送，就参加，如果已参加赠送，就退出
+        form_data = {"xsrf_token": self._xsrf_token, "do": "entry_insert" if inserting else "entry_delete",
+                     "code": giveaway.code}
+        response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data,
+                                     headers={"Referer": giveaway.link})
+        return self._handle_response(inserting, giveaway, name_url, response, logger)
 
-    def insert_entry_in_homepage(self, giveaway: Giveaway) -> bool:
+    def toggle_entered_in_homepage(self, giveaway: Giveaway) -> bool:
         """
-        在首页参赠
+        反转赠送的状态：如果已参加，就退出，如果未参加，就参加
         :param giveaway: 赠送对象
+        :return: 是否成功
         """
-        logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.insert_entry_in_homepage.__name__)
+        logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.toggle_entered_in_homepage.__name__)
         name_url = f"<{giveaway.name}> [{giveaway.link}]"
-        form_data = {"xsrf_token": self._xsrf_token, "do": "entry_insert", "code": giveaway.code}
+        inserting = not giveaway.entered    # 是否参加赠送的标识：如果未参加赠送，就参加，如果已参加赠送，就退出
+        form_data = {"xsrf_token": self._xsrf_token, "do": "entry_insert" if inserting else "entry_delete",
+                     "code": giveaway.code}
         response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data, multipart=True)
-        return self._common_operations4insert_entry(giveaway, logger, name_url, response)
+        return self._handle_response(inserting, giveaway, name_url, response, logger)
 
-    def delete_entry_in_homepage(self, giveaway: Giveaway) -> bool:
-        """
-        在首页退出赠送
-        :param giveaway: 赠送对象
-        """
-        logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.delete_entry_in_homepage.__name__)
-        name_url = f"<{giveaway.name}> [{giveaway.link}]"
-        form_data = {"xsrf_token": self._xsrf_token, "do": "entry_delete", "code": giveaway.code}
-        response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data, multipart=True)
-        return self._common_operations4delete_entry(giveaway, logger, name_url, response)
-
-    def _common_operations4insert_entry(self, giveaway: Giveaway, logger: logging.Logger, name_url: str,
-                                        response: Response) -> bool:
+    def _handle_response(self, inserting: bool, giveaway: Giveaway, name_url: str, response: Response,
+                         logger: logging.Logger):
         """
         解析参赠响应，更新赠送状态，打印相应日志
+        :param inserting: 是否参加
         :param giveaway: 赠送对象
-        :param logger: 日志记录器
         :param name_url: 赠送名称URL
         :param response: 响应对象
+        :param logger: 日志记录器
         """
         # 参加赠送的响应分类
         # 1. 参加成功
         #    {"type":"success","entry_count":"387","points":"128"}
-        # 2. 已参加，参加失败
+        # 2. 参加失败（已参加）（比参加成功少了entry_count字段）
         #    {"type":"success","points":"128"}
-        # 3. 点数不足
+        # 3. 参加失败: 点数不足
         #    {"type":"error","msg":"Not Enough Points","points":"154"}
-        # 4. 已赢得相同游戏
+        # 4. 参加失败: 已赢得相同游戏
         #    {"type":"error","msg":"Previously Won","points":"154"}
-        # 5. 游戏已存在于账户中
+        # 5. 参加失败: 游戏已存在于账户中
         #    {"type":"error","msg":"Exists in Account","points":"154"}
-        # 6. 赠送已过期
-        #    {"type":"error","msg":"Error","points":"154"} 可疑？
+        # 6. 参加失败: 创建者不能参加赠送或赠送过期/删除？
+        #    {"type":"error","msg":"Error","points":"154"}
+        # 退出赠送的响应分类
+        # 1. 退出成功
+        #    {"type":"success","entry_count":"385","points":"148"}
+        # 2. 退出失败（已退出）（比退出成功少了entry_count字段）
+        #    {"type":"success","points":"148"}
+        # 3. 退出失败: 赠送过期/删除？
+        #    {"type":"error","msg":"Error","points":"134"}
         if not response.content:
             logger.warning("csrf_token错误，参赠失败")
             self.update_status()
             return False
         data = response.json()
+        operate_giveaway: str = ("参加" if inserting else "退出") + name_url
+        line: str = "-" * 7
+        formated_response: str = f"{line}响应体开始{line}\n{data}\n{line}响应体结束{line}"
+        operate_giveaway_and_response: str = f"{operate_giveaway}\n{formated_response}"
         if data["type"] == "success":
-            giveaway.entered = True
-            return self._common_operation4insert_delete("参加", name_url, giveaway, data, logger)
-        elif data["type"] == "error":
+            giveaway.entered = inserting
             self.points = int(data["points"])
-            if (msg := data.get("msg")) == "Not Enough Points":
-                logger.warning(f"未能参加{name_url}: 点数不足，当前点数{self.points}，需要{giveaway.points}点数")
-            elif msg == "Previously Won":
-                logger.info(f"未能参加{name_url}: 之前已赢得此游戏")
-            elif msg == "Exists in Account":
-                logger.info(f"未能参加{name_url}: 已拥有此游戏")
-            elif msg == "Error":
-                logger.warning(f"未能参加{name_url}: 创建者不能参加或赠送过期/删除\n"
-                               f"{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
+            if "entry_count" in data:
+                giveaway.entry_count = locale.atoi(data["entry_count"])
+                logger.info(f"成功{operate_giveaway}\n剩余点数{self.points:>4d}  Wilson评分{giveaway.wilson_score:>6.3f}  "
+                            f"中奖概率{giveaway.winning_probability * 1000:>7.2f}‰  评级{giveaway.rank * 1000:>7.2f}")
+                return True
             else:
-                logger.error(f"未预期的未能参加{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
-        else:
-            logger.error(f"未预期的未能参加{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
-        return False
-
-    def _common_operations4delete_entry(self, giveaway: Giveaway, logger: logging.Logger, name_url: str,
-                                        response: Response) -> bool:
-        """
-        解析退赠响应，更新赠送状态，打印相应日志
-        :param giveaway: 赠送对象
-        :param logger: 日志记录器
-        :param name_url: 赠送名称URL
-        :param response: 响应对象
-        """
-        # 退出赠送的响应分类
-        # 1. 退出成功
-        #    {"type":"success","entry_count":"385","points":"148"}
-        # 2. 已退出，退出失败（比退出成功少了entry_count字段）
-        #    {"type":"success","points":"148"}
-        # 3. 赠送已过期
-        #    {"type":"error","msg":"Error","points":"134"} 可疑？
-        if not response.content:
-            logger.warning("csrf_token错误，退赠失败")
-            self.update_status()
-            return False
-        data = response.json()
-        if data["type"] == "success":
-            giveaway.entered = False
-            return self._common_operation4insert_delete("退出", name_url, giveaway, data, logger)
+                logger.warning(f"未能{operate_giveaway}: {'已参加' if inserting else '未参加'}")
+                return False
         elif data["type"] == "error":
             self.points = int(data["points"])
-            logger.warning(f"退出{name_url}失败: 赠送过期或删除\n"
-                           f"{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
+            if inserting:
+                if (msg := data.get("msg")) == "Not Enough Points":
+                    logger.warning(f"未能{operate_giveaway}: 点数不足，当前点数{self.points}，需要{giveaway.points}点数")
+                elif msg == "Previously Won":
+                    logger.info(f"未能{operate_giveaway}: 之前已赢得此游戏")
+                elif msg == "Exists in Account":
+                    logger.info(f"未能{operate_giveaway}: 已拥有此游戏")
+                elif msg == "Error":
+                    logger.warning(f"未能{operate_giveaway}: 创建者不能参加赠送或赠送过期/删除\n{formated_response}")
+                else:
+                    logger.error(f"未预期的未能{operate_giveaway_and_response}")
+            else:
+                logger.warning(f"未能{operate_giveaway}: 赠送过期或删除\n{formated_response}")
         else:
-            logger.error(f"未预期的未能退出{name_url}\n{'-' * 5}响应体开始{'-' * 5}\n{data}\n{'-' * 5}响应体结束{'-' * 5}")
+            logger.error(f"未预期的未能{operate_giveaway_and_response}")
         return False
-
-    def _common_operation4insert_delete(self, operation: Literal["参加", "退出"], name_url: str, giveaway: Giveaway,
-                                        data: dict[str, Any], logger: logging.Logger) -> bool:
-        self.points = int(data["points"])
-        if "entry_count" in data:
-            giveaway.entry_count = locale.atoi(data["entry_count"])
-            logger.info(f"成功{operation}{name_url}\n剩余点数{self.points:>4d}  Wilson评分{giveaway.wilson_score:>6.3f}  "
-                        f"中奖概率{giveaway.winning_probability * 1000:>7.2f}‰  评级{giveaway.rank * 1000:>7.2f}")
-            return True
-        else:
-            logger.warning(f"未能{operation}{name_url}: {'已参加' if operation == '参加' else '未参加'}")
-            return False
 
     def _load_config_session_id(self):
         """
