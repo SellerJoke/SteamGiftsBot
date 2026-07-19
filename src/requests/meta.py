@@ -83,7 +83,7 @@ class WebsiteThrottle:
 
 
 def retry_on_exception(exceptions: type[Exception] | tuple[type[Exception], ...], max_time: int = 100,
-					   sleep_interval: float = 0):
+					   sleep_interval: float = 0.0):
 	"""
 	装饰器：在指定异常发生时重试
 	:param exceptions: 要重试的异常类型列表

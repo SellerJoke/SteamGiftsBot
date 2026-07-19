@@ -95,16 +95,14 @@ class RetryClient(Client):
     @retry_on_502
     @retry_on_exception(exceptions=ConnectError, sleep_interval=20)
     @retry_on_exception(exceptions=TimeoutException)
-    def get(self, url: URL | str, *, retry_time: int = 1, params: QueryParamTypes | None = None,
-            headers: HeaderTypes | None = None, cookies: CookieTypes | None = None,
-            auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
+    def get(self, url: URL | str, *, params: QueryParamTypes | None = None, headers: HeaderTypes | None = None,
+            cookies: CookieTypes | None = None, auth: AuthTypes | UseClientDefault | None = USE_CLIENT_DEFAULT,
             follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
             timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT, extensions: RequestExtensions | None = None
             ) -> Response:
         """
         重试的get方法
         :param url: 目标url
-        :param retry_time: 重试次数
         :param params: url参数
         :param headers: 请求头
         :param cookies: cookies
@@ -122,8 +120,8 @@ class RetryClient(Client):
     @retry_on_502
     @retry_on_exception(exceptions=ConnectError, sleep_interval=20)
     @retry_on_exception(exceptions=TimeoutException)
-    def post(self, url: URL | str, *, retry_time: int = 1, content: RequestContent | None = None,
-             data: RequestData | None = None, multipart: bool = False, files: RequestFiles | None = None, json: typing.Any | None = None,
+    def post(self, url: URL | str, *, content: RequestContent | None = None, data: RequestData | None = None,
+             multipart: bool = False, files: RequestFiles | None = None, json: typing.Any | None = None,
              params: QueryParamTypes | None = None, headers: HeaderTypes | None = None, cookies: CookieTypes | None = None,
              auth: AuthTypes | UseClientDefault = USE_CLIENT_DEFAULT,
              follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
@@ -132,7 +130,6 @@ class RetryClient(Client):
         """
         重试的post方法
         :param url:目标url
-        :param retry_time: 重试次数
         :param content:
         :param data:
         :param multipart: 是否将data参数编码为供files参数使用的multipart/form-data格式数据
