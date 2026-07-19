@@ -311,22 +311,22 @@ class Bot:
     def _add_row(table: Table, giveaway: Giveaway, points: int):
         """添加赠送行到表格。"""
         if giveaway.wilson_score > 0.9:
-            score_color = "bright_blue"
+            score_color = "bright_cyan"
         elif giveaway.wilson_score > 0.8:
             score_color = "bright_green"
         elif giveaway.wilson_score > 0.6:
             score_color = "green"
         elif giveaway.wilson_score > 0.4:
-            score_color = "yellow"
+            score_color = "bright_yellow"
         else:
-            score_color = "red"
+            score_color = "bright_red"
         table.add_row(
             str(giveaway.id),
             giveaway.name,
             Text(text=f"{giveaway.wilson_score:>5.3f}", style=Style(color=score_color)),
             f"{giveaway.winning_probability * 1000:>7.2f}‰",
             f"{giveaway.rank * 1000:>7.2f}",
-            "参加" if giveaway.entered else "退出",
+            "[bright_white]参加[/]" if giveaway.entered else "退出",
             f"{points:>3d}"
         )
 
