@@ -233,6 +233,12 @@ class Bot:
                     if (quiting_giveaway := giveaways[negative_index]).entered and quiting_giveaway.points > 0:
                         quiting_giveaways.append(quiting_giveaway)
                         gaining_points += quiting_giveaway.points
+                    elif (point_0_giveaway := giveaways[negative_index]).points == 0 and not point_0_giveaway.entered:
+                        # 如果扫描到评级低但是点数需求为0的赠送，直接参加（因为参加这样的赠送不需要成本）
+                        result: bool = self._steamgifts_client.toggle_entered(point_0_giveaway)
+                        if result:
+                            Bot._add_row(table, point_0_giveaway, self._steamgifts_client.points)
+                            insert_count += 1
                     negative_index -= 1
                 # 如果退出低评级赠送后总点数仍不足以参加赠送a，那就不值得为参加高评级赠送而退出低评级赠送，退出循环
                 if self._steamgifts_client.points + gaining_points < entering_giveaway.points:
