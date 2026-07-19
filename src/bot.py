@@ -247,7 +247,7 @@ class Bot:
             if self._steamgifts_client.points < entering_giveaway.points:
                 break
             # 如果点数足够，则参加赠送a
-            result: bool = self._steamgifts_client.insert_entry_in_giveaway_details(entering_giveaway)
+            result: bool = self._steamgifts_client.toggle_entered(entering_giveaway)
             if result:
                 Bot._add_row(table, entering_giveaway, self._steamgifts_client.points)
                 insert_count += 1
@@ -320,12 +320,14 @@ class Bot:
             score_color = "bright_yellow"
         else:
             score_color = "bright_red"
+        score_text = f"{0:>5d}" if giveaway.wilson_score == 0.0 else f"{giveaway.wilson_score:>5.3f}"
+        rank_text = f"{0:>7d}" if giveaway.rank == 0.0 else f"{giveaway.rank * 1000:>7.2f}"
         table.add_row(
             str(giveaway.id),
             giveaway.name,
-            Text(text=f"{giveaway.wilson_score:>5.3f}", style=Style(color=score_color)),
+            Text(text=score_text, style=Style(color=score_color)),
             f"{giveaway.winning_probability * 1000:>7.2f}‰",
-            f"{giveaway.rank * 1000:>7.2f}",
+            rank_text,
             "[bright_white]参加[/]" if giveaway.entered else "退出",
             f"{points:>3d}"
         )
