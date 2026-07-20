@@ -128,12 +128,17 @@ class Giveaway(Base, IntPKMixin):
     @property
     def rank(self) -> float:
         """
-        赠送评级，用于排序
-        计算公式（暂定）：(wilson_score ^ 2) * (winning_probability * CONSTANT) / (1 + winning_probability * CONSTANT)
+        赠送评级，用于排序。
+        计算公式：(1.26 ^ (wilson_score * 10)) * (winning_probability ^ 0.3)
+        如此设计计算公式是为了使wilson_score和winning_probability在各自的取值范围内发生的变化对计算结果有大致相同的影响。
+        wilson_score每增加0.1，计算结果会增长1.26倍；
+        wilson_score的大致取值范围是[0.15, 0.95]，wilson_score从取值范围的最小值变最大值，增加了0.9，这将导致计算结果增加8倍。
+        winning_probability每增长10倍，计算结果大约增长2倍；
+        winning_probability的大致取值范围是[1/10000, 1/10]，winning_probability从取值范围的最小值变最大值，
+          增长了1000倍，这将导致计算结果增长约8倍。
         :return: 赠送评级
         """
-        pc = self.winning_probability * Giveaway._PROBABILITY_CONSTANT
-        return (self.wilson_score ** 2) * pc / (1 + pc)
+        return (1.26 ** (self.wilson_score * 10)) * (self.winning_probability ** 0.3)
 
     @property
     def rank_up_to_date(self) -> bool:

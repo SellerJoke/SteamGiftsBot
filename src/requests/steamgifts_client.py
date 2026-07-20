@@ -170,7 +170,7 @@ class SteamGiftsClient:
             if "entry_count" in data:
                 giveaway.entry_count = locale.atoi(data["entry_count"])
                 logger.info(f"成功{operate_giveaway}\n剩余点数{self.points:>4d}  Wilson评分{giveaway.wilson_score:>6.3f}  "
-                            f"中奖概率{giveaway.winning_probability * 1000:>7.2f}‰  评级{giveaway.rank * 1000:>7.2f}")
+                            f"中奖概率{giveaway.winning_probability * 1000:>7.2f}‰  评级{giveaway.rank * 1000:>7.1f}")
                 return True
             else:
                 logger.warning(f"未能{operate_giveaway}: {'已参加' if inserting else '未参加'}")
