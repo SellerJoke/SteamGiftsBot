@@ -1,10 +1,12 @@
 from typing import Any, Iterable, TYPE_CHECKING
 
-from src.object.auxiliary import GiveawayData, UserData, IdName, IdNameDict
+from src.object.auxiliary import IdName
 from src.object.persistent.base_entity import T
 from src.object.persistent.giveaway import Giveaway
 from src.object.persistent.steam_app import SteamApp
 from src.object.persistent.user import User
+from src.object.value import GiveawayData, UserData, IdNameDict
+
 if TYPE_CHECKING:
     from src.object.persistent.steam_package import SteamPackage
 
@@ -32,6 +34,7 @@ def giveaway2app_info(giveaway: Giveaway) -> IdName:
         raise Exception("giveaway.name不能为空")
     return IdName(id=giveaway.app_id, name=giveaway.name)
 
+
 def giveaway2package_info(giveaway: Giveaway) -> IdName:
     if giveaway.package_id is None:
         raise Exception("giveaway.package_id不能为空")
@@ -39,15 +42,19 @@ def giveaway2package_info(giveaway: Giveaway) -> IdName:
         raise Exception("giveaway.name不能为空")
     return IdName(id=giveaway.package_id, name=giveaway.name)
 
+
 def to_id_name(has_id_name: SteamApp | SteamPackage) -> IdName:
     # noinspection PyTypeChecker
     return IdName(id=has_id_name.id, name=has_id_name.name)
 
+
 def dict2id_name(data: IdNameDict) -> IdName:
     return IdName(id=data["id"], name=data["name"])
 
+
 def dict_list2id_name_list(data_list: list[IdNameDict]) -> list[IdName]:
     return [dict2id_name(data) for data in data_list]
+
 
 def entities2dict(entities: Iterable[T]) -> list[dict[str, Any]]:
     """将SQLAlchemy实体类列表转换为字典列表"""

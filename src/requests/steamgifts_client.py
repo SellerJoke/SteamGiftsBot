@@ -5,14 +5,15 @@ import time
 from bs4 import BeautifulSoup, Tag
 from httpx import Response
 
-from src.object.auxiliary import GiveawayData, Status
 from src.object.persistent.giveaway import Giveaway
+from src.object.persistent.status import Status
 # noinspection PyUnusedImports
 from src.object.persistent.steam_app import SteamApp
 # noinspection PyUnusedImports
 from src.object.persistent.steam_package import SteamPackage
 # noinspection PyUnusedImports
 from src.object.persistent.user import User
+from src.object.value import GiveawayData
 from src.persistence.config_io import ConfigIO
 from src.persistence.status_io import StatusIO
 from src.requests.retry_client import RetryClient

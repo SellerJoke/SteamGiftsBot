@@ -6,7 +6,7 @@ from sqlalchemy.sql import roles
 
 from src.object.persistent.steam_app import SteamApp
 from src.persistence.base_db_io import db_session
-from src.config.log import setup_logging
+
 
 # 提供一些读写SteamApp表的记录的方法
 

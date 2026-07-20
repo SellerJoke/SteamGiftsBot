@@ -4,7 +4,7 @@ from pathlib import Path
 import dill
 
 from src.const.path import ROOT_DIR
-from src.object.auxiliary import Status
+from src.object.persistent.status import Status
 from src.util.file import create_file_if_not_exists
 
 
