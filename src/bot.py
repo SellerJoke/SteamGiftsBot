@@ -327,7 +327,7 @@ class Bot:
         else:
             score_color = "bright_red"
         score_text = f"{0:>5d}" if giveaway.wilson_score == 0.0 else f"{giveaway.wilson_score:>5.3f}"
-        rank_text = f"{0:>7d}" if giveaway.rank == 0.0 else f"{giveaway.rank * 1000:>6.1f}"
+        rank_text = f"{0:>6d}" if giveaway.rank == 0.0 else f"{giveaway.rank * 1000:>6.1f}"
         table.add_row(
             str(giveaway.id),
             giveaway.name,
