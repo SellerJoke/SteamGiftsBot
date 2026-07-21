@@ -125,11 +125,15 @@ class Header:
         _HeadersPicker(
             "SteamAppDetails",
             {
-                "Accept": "application/json; charset=utf-8",
+                # 此请求的响应数据是json类型，但是如果将请求数据类型设为application/json，返回的游戏名可能没有中文，
+                # 但请求类型设为text/html可以返回中文游戏名
+                # "Accept": "application/json; charset=utf-8",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Priority": "u=0, i",
                 "Sec-Fetch-Dest": "document",
                 "Sec-Fetch-Mode": "navigate",
                 "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
                 "Upgrade-Insecure-Requests": "1",
             },
             _MethodMatcher("GET"),
@@ -153,7 +157,9 @@ class Header:
         _HeadersPicker(
             "SteamPackageDetails",
             {
-                "Accept": "application/json; charset=utf-8",
+                # 与Steam App请求头类似，这里的Accept设为text/html比较保险（未验证）
+                # "Accept": "application/json; charset=utf-8",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Priority": "u=0, i",
                 "Sec-Fetch-Dest": "document",
                 "Sec-Fetch-Mode": "navigate",
@@ -212,7 +218,6 @@ class Header:
             "SteamGiftsEntryOperationInGiveawayDetail",
             {
                 "Accept": "application/json, text/javascript, */*; q=0.01",
-                # "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
                 "Origin": "https://www.steamgifts.com",
                 "Priority": "u=0",
                 "Sec-Fetch-Dest": "empty",
