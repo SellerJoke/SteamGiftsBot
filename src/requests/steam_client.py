@@ -93,8 +93,8 @@ class SteamClient:
     def fetch_steam_packages(self, package_infos: Iterable[IdName]) -> list[SteamPackage]:
         return [self.fetch_steam_package(package_info) for package_info in package_infos]
 
-    def _fetch_details(self, category: Literal["app", "package"], id_: int, country_codes: list[str] | None = None) -> \
-            dict[str, Any] | None:
+    def _fetch_details(self, category: Literal["app", "package"], id_: int,
+                       country_codes: Iterable[str] = ("cn", "hk", "mo", "tw", "sg", "us")) -> dict[str, Any] | None:
         """
         依次使用country_codes中的值作为cc参数和id_参数查询Steam app或package详情，返回第一个成功的响应的json数据，如果不成功则返回None
         :param category: 要查询的Steam信息类别，只能是app或package
@@ -105,8 +105,6 @@ class SteamClient:
         if category not in SteamClient._DETAILS_URLS:
             raise ValueError(f"category必须为{list(SteamClient._DETAILS_URLS.keys())}中的一个")
         url = SteamClient._DETAILS_URLS[category]
-        if not country_codes:
-            country_codes = ["cn", "hk", "mo", "tw", "sg", "us"]
         params: dict[str, Any] = {f"{category}ids": id_}
         for cc in country_codes:
             params["cc"] = cc

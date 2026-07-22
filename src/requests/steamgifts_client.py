@@ -104,7 +104,7 @@ class SteamGiftsClient:
         """
         logger: logging.Logger = SteamGiftsClient.LOGGER.getChild(self.toggle_entered_in_giveaway_details.__name__)
         name_url = f"<{giveaway.name}> [{giveaway.link}]"
-        inserting = not giveaway.entered    # 是否参加赠送的标识：如果未参加赠送，就参加，如果已参加赠送，就退出
+        inserting: bool = not giveaway.entered    # 是否参加赠送的标识：如果未参加赠送，就参加，如果已参加赠送，就退出
         form_data = {"xsrf_token": self._xsrf_token, "do": "entry_insert" if inserting else "entry_delete",
                      "code": giveaway.code}
         response = self._client.post(SteamGiftsClient._INSERT_DELETE_ENTRY_URL, data=form_data,
