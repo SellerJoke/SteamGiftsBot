@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 def data2giveaway(data: GiveawayData) -> Giveaway:
-    giveaway = Giveaway(_id=data["id"], name=data["name"], points=data["points"], copies=data["copies"],
+    giveaway = Giveaway(id_=data["id"], name=data["name"], points=data["points"], copies=data["copies"],
                         app_id=data["app_id"], package_id=data["package_id"], link=data["link"],
                         created_timestamp=data["created_timestamp"], start_timestamp=data["start_timestamp"],
                         end_timestamp=data["end_timestamp"], region_restricted=data["region_restricted"],
@@ -48,12 +48,12 @@ def to_id_name(has_id_name: SteamApp | SteamPackage) -> IdName:
     return IdName(id=has_id_name.id, name=has_id_name.name)
 
 
-def dict2id_name(data: IdNameDict) -> IdName:
+def data2id_name(data: IdNameDict) -> IdName:
     return IdName(id=data["id"], name=data["name"])
 
 
-def dict_list2id_name_list(data_list: list[IdNameDict]) -> list[IdName]:
-    return [dict2id_name(data) for data in data_list]
+def data2id_name_list(data_list: list[IdNameDict]) -> list[IdName]:
+    return [data2id_name(data) for data in data_list]
 
 
 def entities2dict(entities: Iterable[T]) -> list[dict[str, Any]]:

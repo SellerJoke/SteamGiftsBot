@@ -8,4 +8,4 @@ beautifulsoup4==4.15.0  # 用于解析HTML文档
 SQLAlchemy==2.0.51  # 用于数据库操作
 dill==0.4.1 # 用于序列化和反序列化，可以序列化pickle无法序列化的锁对象
 pyyaml==6.0.3 # 用于解析YAML文件
-rich==15.0.0 # 用于打印格式化输出，也是curl-cffi的依赖项
+rich # 用于打印格式化输出，也是curl-cffi的依赖项

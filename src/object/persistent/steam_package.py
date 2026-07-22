@@ -24,8 +24,8 @@ class SteamPackage(Base, IntPKMixin, NameMixin):
         relationship(primaryjoin="Giveaway.package_id == SteamPackage.id", cascade="all, delete-orphan",
                      back_populates="package", lazy="noload")
 
-    def __init__(self, *, _id: int, name: str, app_infos: list[IdName]):
-        super().__init__(id=_id, name=name)
+    def __init__(self, *, id_: int, name: str, app_infos: list[IdName]):
+        super().__init__(id=id_, name=name)
         self._app_infos: list[IdName] = app_infos
 
     def __repr__(self):

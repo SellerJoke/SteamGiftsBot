@@ -125,7 +125,7 @@ class Header:
         _HeadersPicker(
             "SteamAppDetails",
             {
-                # 此请求的响应数据是json类型，但是如果将请求数据类型设为application/json，返回的游戏名可能没有中文，
+                # 此请求的响应数据是json类型，如果将请求数据类型设为application/json，返回的游戏名可能没有中文，
                 # 但请求类型设为text/html可以返回中文游戏名
                 # "Accept": "application/json; charset=utf-8",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
