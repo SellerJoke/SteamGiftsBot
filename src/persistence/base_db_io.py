@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Iterable
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 
 from src.const.path import ROOT_DIR
@@ -11,6 +11,14 @@ from src.util.file import create_dir_if_not_exists
 
 _db_path: Path = ROOT_DIR / "resources" / "persistence" / "steamgifts_bot.sqlite"
 _db_engine = create_engine(f"sqlite:///{_db_path}")
+# 设置数据库连接的PRAGMA参数，启用WAL模式和设置busy timeout、同步模式
+@event.listens_for(_db_engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, _):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")  # 启用WAL模式
+    cursor.execute("PRAGMA synchronous=NORMAL")  # 设置同步模式为NORMAL
+    cursor.execute("PRAGMA busy_timeout=5000")  # 设置busy timeout为5秒
+    cursor.close()
 # 创建数据库session maker，用于创建数据库会话
 # 参数expire_on_commit=False：在会话结束后，将结果保留在内存中，而不是再次从数据库中查询（会话结束后再次查询会抛出异常）
 _DB_SESSION_MAKER: sessionmaker = sessionmaker(bind=_db_engine, expire_on_commit=False)
