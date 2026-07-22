@@ -77,14 +77,14 @@ class Bot:
             local_giveaway: Giveaway | None = local_giveaways.pop(_id, None)
             if local_giveaway:
                 combined_giveaway: Giveaway = Bot._combine_giveaway(local_giveaway, fetched_giveaway)
-                if combined_giveaway.rank_up_to_date:
+                if combined_giveaway.rank_fresh:
                     updated_giveaways.append(combined_giveaway)
                 else:
                     updating_giveaways.append(combined_giveaway)
             else:
                 updating_giveaways.append(fetched_giveaway)
-        updated_giveaways.extend(filter(lambda giveaway: giveaway.rank_up_to_date, local_giveaways.values()))
-        updating_giveaways.extend(filter(lambda giveaway: not giveaway.rank_up_to_date, local_giveaways.values()))
+        updated_giveaways.extend(filter(lambda giveaway: giveaway.rank_fresh, local_giveaways.values()))
+        updating_giveaways.extend(filter(lambda giveaway: not giveaway.rank_fresh, local_giveaways.values()))
         updated_giveaways.extend(self._update_giveaways(updating_giveaways))
         return updated_giveaways
 
@@ -116,11 +116,11 @@ class Bot:
         }
         # 用上述package_ids从数据库查询package信息
         queried_packages: list[SteamPackage] = steam_package_io.get_by_ids(info.id for info in querying_package_infos)
-        queried_up_to_date_package_infos: set[IdName] = {to_id_name(package) for package in queried_packages if package.up_to_date}
+        queried_up_to_date_package_infos: set[IdName] = {to_id_name(package) for package in queried_packages if package.fresh}
         # 获取giveaways中过期的package_infos
         outdated_giveaway_package_infos: set[IdName] = {
             giveaway2package_info(giveaway) for giveaway in giveaways
-            if giveaway.package_id is not None and giveaway.package and not giveaway.package.up_to_date
+            if giveaway.package_id is not None and giveaway.package and not giveaway.package.fresh
         }
         # 用待查询package_ids减去已从数据库中查询到的package_ids，得到需要从Steam网站获取的package_ids
         fetching_package_infos: set[IdName] = (querying_package_infos | outdated_giveaway_package_infos) - \
@@ -143,18 +143,18 @@ class Bot:
         outdated_giveaway_app_infos: set[IdName] = {
             giveaway2app_info(giveaway)
             for giveaway in giveaways
-            if giveaway.app and not giveaway.app.up_to_date
+            if giveaway.app and not giveaway.app.fresh
         }
         # 从giveaways的packages中提取过期的app
         outdated_giveaway_pkg_app_infos: set[IdName] = {
             to_id_name(app)
-            for giveaway in giveaways if (pkg := giveaway.package) and not pkg.up_to_date
+            for giveaway in giveaways if (pkg := giveaway.package) and not pkg.fresh
             for app in cast(SteamPackage, pkg).apps
         }
         # 从queried_packages提取过期的app
         outdated_pkg_app_infos: set[IdName] = {
             to_id_name(app)
-            for pkg in queried_packages if not pkg.up_to_date
+            for pkg in queried_packages if not pkg.fresh
             for app in pkg.apps
         }
         # 合并querying_app_infos、outdated_giveaway_app_infos、outdated_giveaway_pkg_app_infos、outdated_pkg_app_infos，
@@ -176,7 +176,7 @@ class Bot:
         packages: dict[int, SteamPackage] = {package.id: package for package in packages}
         apps: dict[int, SteamApp] = {app.id: app for app in apps}
         for giveaway in giveaways:
-            if giveaway.package_id is not None and (giveaway.package is None or not giveaway.package.up_to_date):
+            if giveaway.package_id is not None and (giveaway.package is None or not giveaway.package.fresh):
                 package: SteamPackage | None = packages.get(giveaway.package_id)
                 if package is None:
                     logger.error(f"未能装配Giveaway，找不到id为{giveaway.package_id}的package")
@@ -185,7 +185,7 @@ class Bot:
                 package.apps = [app for app_info in package.app_infos
                                 if (app := (apps.get(app_info.id) or self_apps.get(app_info.id))) is not None]
                 giveaway.package = package
-            elif giveaway.app_id is not None and (giveaway.app is None or not giveaway.app.up_to_date):
+            elif giveaway.app_id is not None and (giveaway.app is None or not giveaway.app.fresh):
                 app: SteamApp | None = apps.get(giveaway.app_id)
                 if app is None:
                     logger.error(f"未能装配Giveaway，找不到id为{giveaway.app_id}的app")

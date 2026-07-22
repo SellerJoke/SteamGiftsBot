@@ -77,7 +77,7 @@ class SteamApp(Base, IntPKMixin, NameMixin):
         return low, high
 
     @property
-    def up_to_date(self) -> bool:
+    def fresh(self) -> bool:
         """
         :return: 应用评价信息是否在有效期内
         """

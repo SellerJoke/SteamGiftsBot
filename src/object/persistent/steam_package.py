@@ -51,11 +51,11 @@ class SteamPackage(Base, IntPKMixin, NameMixin):
         return sum(game_wilson_scores) / len(game_wilson_scores)
 
     @property
-    def up_to_date(self) -> bool:
+    def fresh(self) -> bool:
         """
         :return: 包内的应用评价信息是否在有效期内
         """
-        return all(app.up_to_date for app in self.apps)
+        return all(app.fresh for app in self.apps)
 
 
 if __name__ == "__main__":

@@ -153,13 +153,13 @@ class Giveaway(Base, IntPKMixin):
         return (1.26 ** (self.wilson_score * 10)) * (self.winning_probability ** 0.3)
 
     @property
-    def rank_up_to_date(self) -> bool:
+    def rank_fresh(self) -> bool:
         """
         :return: 赠送所关联的Steam App或Steam Package评价信息是否在有效期内
         """
         # 注意，下面的判断使用or运算符连接。
         # 因为一个赠送要么关联一个Steam App，要么关联一个Steam Package，所以app和package中有且只有一个非None值
-        return (self.app is not None and self.app.up_to_date) or (self.package is not None and self.package.up_to_date)
+        return (self.app is not None and self.app.fresh) or (self.package is not None and self.package.fresh)
 
 
 if __name__ == "__main__":
