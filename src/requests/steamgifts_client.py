@@ -186,6 +186,7 @@ class SteamGiftsClient:
                     logger.info(f"未能{operate_giveaway}: 已拥有此游戏")
                 elif msg == "Error":
                     logger.warning(f"未能{operate_giveaway}: 创建者不能参加赠送或赠送过期/删除\n{formated_response}")
+                    giveaway.available = False
                 else:
                     logger.error(f"未预期的未能{operate_giveaway_and_response}")
             else:

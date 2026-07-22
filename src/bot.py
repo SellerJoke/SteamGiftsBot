@@ -213,28 +213,28 @@ class Bot:
         delete_count: int = 0
         table = Bot._create_table()
         while positive_index - negative_index <= len(giveaways):
-            # 从前往后找到第一个未参加的高评级赠送a
-            while positive_index - negative_index < len(giveaways) and giveaways[positive_index].entered:
+            # 从前往后找到第一个未参加且能参加的高评级赠送a
+            while positive_index - negative_index < len(giveaways) and not giveaways[positive_index].enterable:
                 positive_index += 1
             # 如果正数下标与负数下标重合还没找到未参加的赠送，说明高价值的赠送已参加完，退出循环
-            if (entering_giveaway := giveaways[positive_index]).entered:
+            if not (entering_giveaway := giveaways[positive_index]).enterable:
                 break
             # 如果账户内点数不足以参加赠送，从后往前依次寻找已参加的低评级赠送，退出这些赠送，直到点数足够参加赠送a或负数下标与正数下标重合，退出循环
             # 这里有2层嵌套循环，内层循环寻找要退出的赠送，但是退出赠送可能不成功，所以退出赠送后还要在外层循环检查点数是否足够参加赠送a，
             #  如果点数不足还要再次进入循环寻找低评级赠送来退出
             while self._steamgifts_client.points < entering_giveaway.points and \
                     positive_index - negative_index < len(giveaways):
-                quiting_giveaways: list[Giveaway] = []  # 计划退出的赠送
-                gaining_points: int = 0  # 退出quiting_giveaways后点数增加的量
+                removing_giveaways: list[Giveaway] = []  # 计划退出的赠送
+                gaining_points: int = 0  # 退出removing_giveaways后点数增加的量
                 while self._steamgifts_client.points + gaining_points < entering_giveaway.points and \
                         positive_index - negative_index < len(giveaways):
                     # 从后往前扫描，找到所有已参加的低评级赠送，如果退出这些赠送后总点数足够参加赠送a，
-                    # 那就把这些赠送添加到quiting_giveaways，以备后续退出这些赠送
-                    if (quiting_giveaway := giveaways[negative_index]).entered and quiting_giveaway.points > 0:
-                        quiting_giveaways.append(quiting_giveaway)
-                        gaining_points += quiting_giveaway.points
-                    elif (point_0_giveaway := giveaways[negative_index]).points == 0 and not point_0_giveaway.entered:
-                        # 如果扫描到评级低但是点数需求为0的赠送，直接参加（因为参加这样的赠送不需要成本）
+                    # 那就把这些赠送添加到removing_giveaways，以备后续退出这些赠送
+                    if (removing_giveaway := giveaways[negative_index]).points > 0 and removing_giveaway.removable:
+                        removing_giveaways.append(removing_giveaway)
+                        gaining_points += removing_giveaway.points
+                    elif (point_0_giveaway := giveaways[negative_index]).points == 0 and point_0_giveaway.enterable:
+                        # 如果扫描到评级低但是点数需求为0且能参加的赠送，直接参加（因为参加这样的赠送不需要成本）
                         result: bool = self._steamgifts_client.toggle_entered(point_0_giveaway)
                         if result:
                             Bot._add_row(table, point_0_giveaway, self._steamgifts_client.points)
@@ -244,10 +244,10 @@ class Bot:
                 if self._steamgifts_client.points + gaining_points < entering_giveaway.points:
                     break
                 # 执行退出赠送操作
-                for quiting_giveaway in quiting_giveaways:
-                    result: bool = self._steamgifts_client.toggle_entered(quiting_giveaway)
+                for removing_giveaway in removing_giveaways:
+                    result: bool = self._steamgifts_client.toggle_entered(removing_giveaway)
                     if result:
-                        Bot._add_row(table, quiting_giveaway, self._steamgifts_client.points)
+                        Bot._add_row(table, removing_giveaway, self._steamgifts_client.points)
                         delete_count += 1
             # 如果退出低评级赠送后点数仍不足以参加赠送a，说明所有已参加的赠送的评级均大于未参加的赠送的评级，不用再参赠，退出循环
             if self._steamgifts_client.points < entering_giveaway.points:
@@ -275,21 +275,28 @@ class Bot:
         # 新增或改变的用户
         new_or_changed_users: set[User] = {
             new for new in {giveaway.creator for giveaway in fetched_giveaways}
-            if new.id not in old_users or (old := old_users[new.id]).username != new.username or old.steam_id != new.steam_id
+            if new.id not in old_users or (old := old_users[new.id]).username != new.username or
+               old.steam_id != new.steam_id
         }
         # 新增赠送
         new_giveaways: set[Giveaway] = fetched_giveaways - queried_giveaways
-        # 改变的赠送，因为赠送的字段只有comment_count、entry_count、entered，所以只更新这三个字段
+        # 改变的赠送，因为赠送的字段只有comment_count、entry_count、entered、available会改变，所以只更新这四个字段
         updating_giveaway_fields: list[dict[str, Any]] = [
-            {"id": new.id, "comment_count": new.comment_count, "entry_count": new.entry_count, "entered": new.entered}
+            {"id": new.id, "comment_count": new.comment_count, "entry_count": new.entry_count, "entered": new.entered,
+             "available": new.available}
             for new in fetched_giveaways
             if (old := queried_giveaway_dict.get(new.id)) and
-               (new.comment_count != old.comment_count or new.entry_count != old.entry_count or new.entered != old.entered)
+               (new.comment_count != old.comment_count or new.entry_count != old.entry_count or
+                new.entered != old.entered or new.available != old.available)
         ]
-        # 只存在于数据库而不存在于SteamGifts返回的赠送，用户屏蔽和赢得的游戏赠送都不会出现在SteamGifts返回的赠送列表中
-        old_giveaways: set[Giveaway] = queried_giveaways - fetched_giveaways
+        # 只存在于数据库而不存在于SteamGifts返回的赠送，下列赠送不会出现在SteamGifts返回的赠送列表里：
+        # 1. 用户屏蔽的游戏
+        # 2. 用户曾经赢得的游戏
+        # 3. 被删除的赠送
+        # 4. 将用户加入黑名单的创建者创建的赠送
         old_giveaway_fields: list[dict[str, Any]] = [
-            {"id": g.id, "entry_count": g.entry_count, "entered": g.entered} for g in old_giveaways
+            {"id": g.id, "entry_count": g.entry_count, "entered": g.entered, "available": g.available}
+            for g in queried_giveaways - fetched_giveaways
         ]
         with db_session() as session, session.begin():
             base_db_io.merge_all_without_relationship_by_sqlite(new_or_changed_users, session)

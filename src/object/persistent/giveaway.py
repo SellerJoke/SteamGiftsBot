@@ -43,6 +43,7 @@ class Giveaway(Base, IntPKMixin):
     entry_count: Mapped[int] = mapped_column(INTEGER, default=0, server_default=text("0"), nullable=False)
     creator_id: Mapped[int] = mapped_column(ForeignKey("user.id", onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
     entered: Mapped[bool] = mapped_column(BOOLEAN, default=False, server_default=text("FALSE"), nullable=False)
+    available: Mapped[bool] = mapped_column(BOOLEAN, default=True, server_default=text("TRUE"), nullable=False)
 
     app: Mapped[SteamApp | None] = relationship(foreign_keys=[app_id], back_populates="giveaways", lazy="joined")
     package: Mapped[SteamPackage | None] = relationship(foreign_keys=[package_id], back_populates="giveaways", lazy="joined")
@@ -53,7 +54,7 @@ class Giveaway(Base, IntPKMixin):
                  package_id: int | None = None, link: str, created_timestamp: int, start_timestamp: int,
                  end_timestamp: int, region_restricted: bool = False, invite_only: bool = False,
                  whitelist: bool = False, group: bool = False, contributor_level: int = 0, comment_count: int = 0,
-                 entry_count: int = 0, creator_id: int, entered: bool = False):
+                 entry_count: int = 0, creator_id: int, entered: bool = False, available: bool = True):
         super().__init__(id=id_)
         self._name = name
         self.points = points
@@ -73,6 +74,7 @@ class Giveaway(Base, IntPKMixin):
         self.entry_count = entry_count
         self.creator_id = creator_id
         self.entered = entered
+        self.available = available
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(id={self.id}, code={self.code}, name={self.name}, points={self.points}, "\
@@ -105,6 +107,16 @@ class Giveaway(Base, IntPKMixin):
         if not match:
             raise Exception(f"无法从{self.link}中提取code")
         return match.group(1)
+
+    @property
+    def enterable(self) -> bool:
+        """此赠送是否可参加"""
+        return not self.entered and self.available and self.start_timestamp <= time.time() <= self.end_timestamp
+
+    @property
+    def removable(self) -> bool:
+        """此赠送是否可退出"""
+        return self.entered and self.available and self.start_timestamp <= time.time() <= self.end_timestamp
 
     @property
     def wilson_score(self) -> float:
