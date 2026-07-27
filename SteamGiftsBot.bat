@@ -1,7 +1,9 @@
 :: 禁用命令回显
 @echo off
 :: 设置控制台编码为UTF-8且不显示本条命令
-chcp 65001 > nul
+chcp 65001 >nul
+:: 增加控制台缓冲区，减小由于最小化窗口后输出缓冲区满导致应用卡住的可能性
+mode con: lines=9999
 :: 检测 Python 是否安装且在 PATH 中可用
 python --version >nul 2>&1
 if errorlevel 1 (
