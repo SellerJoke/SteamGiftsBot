@@ -42,7 +42,7 @@ class Bot:
         logger: logging.Logger = Bot.LOGGER.getChild(Bot.work.__name__)
         logger.info(f"工作流程开始，SteamGifts点数: {self._steamgifts_client.points}")
         CONSOLE.log(f"开始参加/退出赠送，SteamGifts点数：{self._steamgifts_client.points}")
-        # 从数据库获取未结束的赠送列表，按结束时间排序（这也是SteamGifts网站返回的赠送列表的排序方式）
+        # 从数据库获取未结束的赠送列表
         queried_giveaways: list[Giveaway] = giveaway_io.list_open_giveaways()
         # 从SteamGifts网站获取所有赠送列表
         fetched_giveaways: list[Giveaway] = self._steamgifts_client.fetch_all_giveaways()
@@ -51,12 +51,12 @@ class Bot:
         # 根据赠送的评价和中奖概率，参与或退出赠送
         insert_count, delete_count = self.insert_delete_entries(all_giveaways)
         # 把所有赠送和其creator保存到数据库，不保存它关联的SteamApp和SteamPackage，因为在获取新SteamApp和SteamPackage时已经保存过了
-        Bot._save_giveaways(fetched_giveaways, queried_giveaways)
+        Bot._save_giveaways(queried_giveaways, fetched_giveaways)
         self._steamgifts_client.save_status()
-        CONSOLE.log(f"本轮共参加{insert_count}个赠送，退出{delete_count}个赠送")
         logger.info(f"工作流程结束，参加{insert_count}个赠送，退出{delete_count}个赠送")
 
-    def _merge_and_update_giveaways(self, local_giveaways: Iterable[Giveaway], fetched_giveaways: list[Giveaway]) -> list[Giveaway]:
+    def _merge_and_update_giveaways(self, local_giveaways: Iterable[Giveaway], fetched_giveaways: list[Giveaway]) -> \
+            list[Giveaway]:
         """
         把从数据库中查询到的仍然开放的赠送列表和从SteamGifts网站获取到赠送列表合并
         如果一个赠送只存在于local_giveaways，不在fetched_giveaways，把此赠送放入最终列表中
@@ -163,6 +163,8 @@ class Bot:
                                            outdated_giveaway_pkg_app_infos | outdated_pkg_app_infos) - \
                                           {to_id_name(app) for app in queried_up_to_date_apps}
         # 从Steam网站获取app信息
+        if len(fetching_app_infos) > 5:
+            CONSOLE.log(f"正在获取游戏评价信息{'，请稍等' if len(fetching_app_infos) > 30 else ''}...")
         fetched_apps: list[SteamApp] = self._steam_client.fetch_steam_apps(fetching_app_infos)
         # 合并从数据库和Steam网站获取的package和app，使用合并后的package和app信息组装giveaways
         Bot._assemble(giveaways, queried_packages + fetched_packages, queried_up_to_date_apps + fetched_apps)
@@ -259,11 +261,15 @@ class Bot:
                 insert_count += 1
             # 参加赠送a后，正数下标加1
             positive_index += 1
-        CONSOLE.print(table)
+        if insert_count > 0 or delete_count > 0:
+            CONSOLE.print(table)
+            CONSOLE.log(f"本轮共参加{insert_count}个赠送，退出{delete_count}个赠送")
+        else:
+            CONSOLE.log("本轮未参加/退出任何赠送")
         return insert_count, delete_count
 
     @staticmethod
-    def _save_giveaways(fetched_giveaways: list[Giveaway], queried_giveaways: list[Giveaway]):
+    def _save_giveaways(queried_giveaways: list[Giveaway], fetched_giveaways: list[Giveaway]):
         """
         保存赠送列表到数据库。
         这里有第二个参数queried_giveaways，是之前从数据库中查询到的旧数据，用于和从网站获取到数据做对比，只保存新增和改变的赠送。

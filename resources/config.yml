@@ -2,5 +2,5 @@ logging:
   destinations: ["file"]  # 日志输出位置，可选值为"console"、"file"，console表示控制台，file表示文件
   level: "INFO"  # 日志级别，可选值为"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
   show-sql: true  # 是否显示SQL语句，开启后会打印SQL语句，可用于调试数据库
-  debug: false  # 是否打印代码中debug级别的日志，用于调试代码
+  debug: true  # 是否打印代码中debug级别的日志，用于调试代码
 PHPSESSID: null # 用于登录Steamgifts网站的cookie，长度为48的字符串，包含数字和小写字母

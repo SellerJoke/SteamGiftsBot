@@ -20,7 +20,7 @@ def list_open_giveaways() -> list[Giveaway]:
                      joinedload(Giveaway.package).selectinload(SteamPackage.apps).noload("*"),
                      joinedload(Giveaway.package).noload(SteamPackage.giveaways),
                      joinedload(Giveaway.creator).noload("*"))\
-            .filter(Giveaway.end_timestamp > int(time.time())).order_by(Giveaway.end_timestamp).all()
+            .filter(Giveaway.end_timestamp > int(time.time())).all()
 
 
 if __name__ == "__main__":
