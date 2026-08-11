@@ -1,6 +1,7 @@
 import locale
 import logging
 import time
+from json import JSONDecodeError
 
 from bs4 import BeautifulSoup, Tag
 from httpx import Response
@@ -156,13 +157,24 @@ class SteamGiftsClient:
         #    {"type":"success","points":"148"}
         # 3. 退出失败: 赠送过期/删除？
         #    {"type":"error","msg":"Error","points":"134"}
+        line: str = "-" * 7
+        operate_giveaway: str = ("参加" if inserting else "退出") + name_url
         if not response.content:
-            logger.warning("csrf_token错误，参赠失败")
+            logger.warning(f"未能{operate_giveaway} - csrf_token错误")
             self.update_status()
             return False
-        data = response.json()
-        operate_giveaway: str = ("参加" if inserting else "退出") + name_url
-        line: str = "-" * 7
+        if response.status_code == 520:
+            if NonBrowserClient.MAINTENANCE in response.text:
+                logger.error(f"未能{operate_giveaway} - 网站维护中")
+            else:
+                logger.error(f"未能{operate_giveaway} - 可能是CloudFlare拦截了请求")
+            return False
+        try:
+            data = response.json()
+        except JSONDecodeError:
+            logger.error(f"未能{operate_giveaway} - 响应体解析失败"
+                         f"\n{line}响应体开始{line}\n{response.text}\n{line}响应体结束{line}")
+            return False
         formated_response: str = f"{line}响应体开始{line}\n{data}\n{line}响应体结束{line}"
         operate_giveaway_and_response: str = f"{operate_giveaway}\n{formated_response}"
         if data["type"] == "success":
