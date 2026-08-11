@@ -12,7 +12,12 @@ class ConfigIO:
     """读取配置文件的类"""
     CONFIG_PATH: Path = ROOT_DIR / "resources/config.yml"
     _DEFAULT_CONFIG: dict[str, Any] = {
-        "debug": False,
+        "logging": {
+            "destination": ["file"],
+            "level": "INFO",
+            "show-sql": True,
+            "debug": True,
+        },
         "PHPSESSID": None
     }
     _PHPSESSID_REGEX = re.compile(r"^[a-z0-9]{48}$")
