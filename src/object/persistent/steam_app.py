@@ -1,10 +1,10 @@
 import time
 from typing import TYPE_CHECKING
 
-from sqlalchemy import VARCHAR, INTEGER, text, BIGINT
+from sqlalchemy import VARCHAR, INTEGER
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.object.persistent.base_entity import Base, IntPKMixin, NameMixin
+from src.object.persistent.base_entity import Base, IntPKMixin, NameMixin, UpdateTimestampMixin
 from src.object.persistent.package_app import PACKAGE_APP
 
 if TYPE_CHECKING:
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from src.object.persistent.steam_package import SteamPackage
 
 
-class SteamApp(Base, IntPKMixin, NameMixin):
+class SteamApp(Base, IntPKMixin, NameMixin, UpdateTimestampMixin):
     """Steam App实体类"""
 
     UPDATE_INTERVAL = 7 * 24 * 60 * 60 # App信息更新间隔：7天
@@ -25,9 +25,6 @@ class SteamApp(Base, IntPKMixin, NameMixin):
     type: Mapped[str | None] = mapped_column(VARCHAR(8))
     total_positive: Mapped[int] = mapped_column(INTEGER, nullable=False)
     total_reviews: Mapped[int] = mapped_column(INTEGER, nullable=False)
-    update_timestamp: Mapped[int] = \
-        mapped_column(BIGINT, nullable=False, default=lambda : int(time.time()), onupdate=lambda : int(time.time()),
-                      server_default=text("strftime('%s', 'now')"), server_onupdate=text("strftime('%s', 'now')"))
 
     packages: Mapped[list[SteamPackage]] = \
         relationship(secondary=PACKAGE_APP, primaryjoin="SteamApp.id == package_app.c.app_id",

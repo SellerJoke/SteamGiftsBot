@@ -83,7 +83,7 @@ class SteamClient:
         data = self._fetch_details("package", package_id)
         if not data:
             logger.warning(f"获取Steam Package {name_id}失败：不存在或已删除")
-            return SteamPackage(id_=package_id, name=name, app_infos=[])
+            return SteamPackage(id_=package_id, name=name, app_infos=[], update_timestamp=0)
         package_details = data[str(package_id)]["data"]
         steam_package = SteamPackage(id_=package_id, name=package_details["name"],
                                      app_infos=data2id_name_list(package_details["apps"]))

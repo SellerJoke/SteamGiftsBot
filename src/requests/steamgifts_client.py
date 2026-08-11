@@ -165,6 +165,7 @@ class SteamGiftsClient:
         formated_response: str = f"{line}响应体开始{line}\n{data}\n{line}响应体结束{line}"
         operate_giveaway_and_response: str = f"{operate_giveaway}\n{formated_response}"
         if data["type"] == "success":
+            giveaway.update_timestamp = int(time.time())
             giveaway.entered = inserting
             self.points = int(data["points"])
             if "entry_count" in data:

@@ -1,9 +1,10 @@
+import time
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, relationship
 
 from src.object.auxiliary import IdName
-from src.object.persistent.base_entity import Base, IntPKMixin, NameMixin
+from src.object.persistent.base_entity import Base, IntPKMixin, NameMixin, UpdateTimestampMixin
 from src.object.persistent.package_app import PACKAGE_APP
 from src.util.convertor import to_id_name
 
@@ -12,8 +13,11 @@ if TYPE_CHECKING:
     from src.object.persistent.giveaway import Giveaway
 
 
-class SteamPackage(Base, IntPKMixin, NameMixin):
+class SteamPackage(Base, IntPKMixin, NameMixin, UpdateTimestampMixin):
     """Steam Package实体类"""
+
+    UPDATE_INTERVAL = 30 * 24 * 60 * 60
+
     __tablename__ = "steam_package"
     __table_args__ = {'extend_existing': True}
 
@@ -24,12 +28,14 @@ class SteamPackage(Base, IntPKMixin, NameMixin):
         relationship(primaryjoin="Giveaway.package_id == SteamPackage.id", cascade="all, delete-orphan",
                      back_populates="package", lazy="noload")
 
-    def __init__(self, *, id_: int, name: str, app_infos: list[IdName]):
-        super().__init__(id=id_, name=name)
+    def __init__(self, *, id_: int, name: str, app_infos: list[IdName], update_timestamp: int = None):
+        super().__init__(id=id_, name=name,
+                         update_timestamp=update_timestamp if update_timestamp is not None else int(time.time()))
         self._app_infos: list[IdName] = app_infos
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}>(id={self.id}, name={self.name}, app_infos={self.app_infos})>"
+        return (f"<{self.__class__.__name__}>(id={self.id}, name={self.name}, app_infos={self.app_infos}, "
+                f"update_timestamp={self.update_timestamp})>")
 
     @property
     def app_infos(self) -> list[IdName]:
@@ -58,7 +64,7 @@ class SteamPackage(Base, IntPKMixin, NameMixin):
         """
         :return: 包内的应用评价信息是否在有效期内
         """
-        return all(app.fresh for app in self.apps)
+        return time.time() - self.update_timestamp <= SteamPackage.UPDATE_INTERVAL
 
 
 if __name__ == "__main__":

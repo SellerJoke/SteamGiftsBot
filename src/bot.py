@@ -12,7 +12,7 @@ from src.object.persistent.giveaway import Giveaway
 from src.object.persistent.steam_app import SteamApp
 from src.object.persistent.steam_package import SteamPackage
 from src.object.persistent.user import User
-from src.persistence import giveaway_io, steam_app_io, steam_package_io, composite_db_io, base_db_io
+from src.persistence import giveaway_io, composite_db_io, base_db_io, universe_db_io
 from src.persistence.base_db_io import db_session
 from src.requests.steam_client import SteamClient
 from src.requests.steamgifts_client import SteamGiftsClient
@@ -115,16 +115,16 @@ class Bot:
             if giveaway.package_id is not None and giveaway.package is None
         }
         # 用上述package_ids从数据库查询package信息
-        queried_packages: list[SteamPackage] = steam_package_io.get_by_ids(info.id for info in querying_package_infos)
-        queried_up_to_date_package_infos: set[IdName] = {to_id_name(package) for package in queried_packages if package.fresh}
+        queried_fresh_packages: list[SteamPackage] = universe_db_io\
+            .list_fresh_entities_by_ids(SteamPackage, tuple(info.id for info in querying_package_infos))
         # 获取giveaways中过期的package_infos
+        # noinspection PyTypeChecker
         outdated_giveaway_package_infos: set[IdName] = {
-            giveaway2package_info(giveaway) for giveaway in giveaways
-            if giveaway.package_id is not None and giveaway.package and not giveaway.package.fresh
+            to_id_name(pkg) for giveaway in giveaways if (pkg := giveaway.package) is not None and not pkg.fresh
         }
-        # 用待查询package_ids减去已从数据库中查询到的package_ids，得到需要从Steam网站获取的package_ids
+        # 用待查询package加上过期的package减去已从数据库中查询到的package，得到需要从Steam网站获取的package_info
         fetching_package_infos: set[IdName] = (querying_package_infos | outdated_giveaway_package_infos) - \
-                                              queried_up_to_date_package_infos
+                                              {to_id_name(package) for package in queried_fresh_packages}
         # 从Steam网站获取package信息
         fetched_packages: list[SteamPackage] = self._steam_client.fetch_steam_packages(fetching_package_infos)
         # 从fetched_packages中提取要查询的app信息
@@ -138,36 +138,36 @@ class Bot:
         # 合并querying_pkg_app_infos和querying_giveaway_app_infos，得到需要从数据库或Steam网站获取的app信息
         querying_app_infos: set[IdName] = querying_pkg_app_infos | querying_giveaway_app_infos
         # 用上述app_ids从数据库查询app信息
-        queried_up_to_date_apps: list[SteamApp] = steam_app_io.list_by_ids_and_up_to_date(info.id for info in querying_app_infos)
+        queried_fresh_apps: list[SteamApp] = universe_db_io\
+            .list_fresh_entities_by_ids(SteamApp, tuple(info.id for info in querying_app_infos))
         # 从giveaways中提取过期的app_infos
+        # noinspection PyTypeChecker
         outdated_giveaway_app_infos: set[IdName] = {
-            giveaway2app_info(giveaway)
-            for giveaway in giveaways
-            if giveaway.app and not giveaway.app.fresh
+            to_id_name(app) for giveaway in giveaways if (app := giveaway.app) is not None and not app.fresh
         }
         # 从giveaways的packages中提取过期的app
         outdated_giveaway_pkg_app_infos: set[IdName] = {
             to_id_name(app)
-            for giveaway in giveaways if (pkg := giveaway.package) and not pkg.fresh
-            for app in cast(SteamPackage, pkg).apps
+            for giveaway in giveaways if (pkg := giveaway.package) is not None
+            for app in pkg.apps if not app.fresh
         }
         # 从queried_packages提取过期的app
         outdated_pkg_app_infos: set[IdName] = {
             to_id_name(app)
-            for pkg in queried_packages if not pkg.fresh
-            for app in pkg.apps
+            for pkg in queried_fresh_packages
+            for app in pkg.apps if not app.fresh
         }
         # 合并querying_app_infos、outdated_giveaway_app_infos、outdated_giveaway_pkg_app_infos、outdated_pkg_app_infos，
         # 移除未过期的，剩下的就是过期的或未查询到的app_info
         fetching_app_infos: set[IdName] = (querying_app_infos | outdated_giveaway_app_infos |
                                            outdated_giveaway_pkg_app_infos | outdated_pkg_app_infos) - \
-                                          {to_id_name(app) for app in queried_up_to_date_apps}
+                                          {to_id_name(app) for app in queried_fresh_apps}
         # 从Steam网站获取app信息
         if len(fetching_app_infos) > 5:
             CONSOLE.log(f"正在获取游戏评价信息{'，请稍等' if len(fetching_app_infos) > 30 else ''}...")
         fetched_apps: list[SteamApp] = self._steam_client.fetch_steam_apps(fetching_app_infos)
         # 合并从数据库和Steam网站获取的package和app，使用合并后的package和app信息组装giveaways
-        Bot._assemble(giveaways, queried_packages + fetched_packages, queried_up_to_date_apps + fetched_apps)
+        Bot._assemble(giveaways, queried_fresh_packages + fetched_packages, queried_fresh_apps + fetched_apps)
         Bot._save_fetched_packages_and_apps(fetched_packages, fetched_apps)
         return giveaways
 
@@ -179,7 +179,7 @@ class Bot:
         apps: dict[int, SteamApp] = {app.id: app for app in apps}
         for giveaway in giveaways:
             if giveaway.package_id is not None and (giveaway.package is None or not giveaway.package.fresh):
-                package: SteamPackage | None = packages.get(giveaway.package_id)
+                package: SteamPackage | None = packages.get(giveaway.package_id) or giveaway.package
                 if package is None:
                     logger.error(f"未能装配Giveaway，找不到id为{giveaway.package_id}的package")
                     continue
@@ -289,7 +289,7 @@ class Bot:
         # 改变的赠送，因为赠送的字段只有comment_count、entry_count、entered、available会改变，所以只更新这四个字段
         updating_giveaway_fields: list[dict[str, Any]] = [
             {"id": new.id, "comment_count": new.comment_count, "entry_count": new.entry_count, "entered": new.entered,
-             "available": new.available}
+             "available": new.available, "update_timestamp": new.update_timestamp}
             for new in fetched_giveaways
             if (old := queried_giveaway_dict.get(new.id)) and
                (new.comment_count != old.comment_count or new.entry_count != old.entry_count or

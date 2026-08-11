@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import VARCHAR, INTEGER, BOOLEAN, ForeignKey, text, BIGINT, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.object.persistent.base_entity import Base, IntPKMixin
+from src.object.persistent.base_entity import Base, IntPKMixin, UpdateTimestampMixin
 
 if TYPE_CHECKING:
     from src.object.persistent.steam_app import SteamApp
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from src.object.persistent.user import User
 
 
-class Giveaway(Base, IntPKMixin):
+class Giveaway(Base, IntPKMixin, UpdateTimestampMixin):
     """SteamGifts giveaway实体类"""
     __tablename__ = "giveaway"
     __table_args__ = (
@@ -54,8 +54,9 @@ class Giveaway(Base, IntPKMixin):
                  package_id: int | None = None, link: str, created_timestamp: int, start_timestamp: int,
                  end_timestamp: int, region_restricted: bool = False, invite_only: bool = False,
                  whitelist: bool = False, group: bool = False, contributor_level: int = 0, comment_count: int = 0,
-                 entry_count: int = 0, creator_id: int, entered: bool = False, available: bool = True):
-        super().__init__(id=id_)
+                 entry_count: int = 0, creator_id: int, entered: bool = False, available: bool = True,
+                 update_timestamp: int = None):
+        super().__init__(id=id_, update_timestamp=update_timestamp if update_timestamp is not None else int(time.time()))
         self._name = name
         self.points = points
         self.copies = copies
@@ -83,7 +84,8 @@ class Giveaway(Base, IntPKMixin):
                f"end_timestamp={self.end_timestamp}, region_restricted={self.region_restricted}, "\
                f"invite_only={self.invite_only}, whitelist={self.whitelist}, group={self.group}, "\
                f"contributor_level={self.contributor_level}, comment_count={self.comment_count}, "\
-               f"entry_count={self.entry_count}, creator_id={self.creator_id}, entered={self.entered})>"
+               f"entry_count={self.entry_count}, creator_id={self.creator_id}, entered={self.entered}, "\
+               f"available={self.available}, update_timestamp={self.update_timestamp})>"
 
     @property
     def name(self) -> str:
@@ -136,7 +138,7 @@ class Giveaway(Base, IntPKMixin):
         if self.entry_count == 0:
             return 1
         result = self.copies / self.entry_count * \
-                 (time.time() - self.start_timestamp) / (self.end_timestamp - self.start_timestamp)
+                 (self.update_timestamp - self.start_timestamp) / (self.end_timestamp - self.start_timestamp)
         return result if result < 1 else 1
 
     @property

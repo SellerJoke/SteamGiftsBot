@@ -1,6 +1,7 @@
+import time
 from typing import TypeVar
 
-from sqlalchemy import INTEGER, VARCHAR
+from sqlalchemy import INTEGER, VARCHAR, BIGINT, text
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 
 
@@ -26,6 +27,11 @@ class NameMixin:
     """SQLAlchemy实体类继承此类，添加了name字段"""
     name: Mapped[str] = mapped_column(VARCHAR(255), index=True, nullable=False)
 
+class UpdateTimestampMixin:
+    """SQLAlchemy实体类继承此类，添加了update_timestamp字段"""
+    update_timestamp: Mapped[int] = \
+        mapped_column(BIGINT, index=True, nullable=False, default=lambda: int(time.time()), onupdate=lambda: int(time.time()),
+                      server_default=text("strftime('%s', 'now')"), server_onupdate=text("strftime('%s', 'now')"))
 
 if __name__ == '__main__':
     pass
