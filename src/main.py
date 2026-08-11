@@ -10,6 +10,7 @@ from src.util.shared_objects import CONSOLE
 if __name__ == "__main__":
     setup_logging()
     logger = logging.getLogger("src.main")
+    SLEEP_INTERVAL: int = 50	# 每轮休眠的分钟数
     with Bot() as bot:
         while True:
             try:
@@ -17,7 +18,7 @@ if __name__ == "__main__":
             except Exception as e:
                 logger.exception("发生异常")
                 raise e
-            logger.info("休眠约1小时")
-            CONSOLE.log("休眠约1小时")
-            # 随机休眠45分钟到75分钟
-            time.sleep((60 + random.uniform(-15, 15)) * 60)
+            logger.info(f"休眠约{SLEEP_INTERVAL}分钟")
+            CONSOLE.log(f"休眠约{SLEEP_INTERVAL}分钟", end="\n\n")
+            # 随机休眠40分钟到60分钟
+            time.sleep(SLEEP_INTERVAL * 60 * (1 + random.uniform(-0.2, 0.2)))
