@@ -83,7 +83,7 @@ class NonBrowserClient(Client):
         # impersonate="firefox"：模拟Firefox浏览器的TLS指纹
         # curl_options={CurlOpt.CAINFO: _build_ca_bundle()}：使用系统证书验证网站身份
         transport = transport or \
-                    CurlTransport(impersonate="firefox", curl_options={CurlOpt.CAINFO: RetryClient._ca_bundle()})
+                    CurlTransport(impersonate="chrome142", curl_options={CurlOpt.CAINFO: NonBrowserClient._ca_bundle()})
 
         super().__init__(auth=auth, params=params, headers=headers, cookies=cookies, verify=verify, cert=cert,
                          trust_env=trust_env, http1=http1, http2=http2, proxy=proxy, mounts=mounts, timeout=timeout,
