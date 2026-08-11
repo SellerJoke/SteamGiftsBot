@@ -16,8 +16,9 @@ from src.object.persistent.user import User
 from src.object.value import GiveawayData
 from src.persistence.config_io import ConfigIO
 from src.persistence.status_io import StatusIO
-from src.requests.retry_client import RetryClient
+from src.requests.non_browser_client import NonBrowserClient
 from src.util.convertor import data2giveaway
+from src.util.shared_objects import NON_BROWSER_CLIENT
 
 
 class SteamGiftsClient:
@@ -41,7 +42,7 @@ class SteamGiftsClient:
         locale.setlocale(locale.LC_ALL, "en_US")
         if SteamGiftsClient.LOGGER is None:
             SteamGiftsClient.LOGGER = logging.getLogger(__name__).getChild(SteamGiftsClient.__name__)
-        self._client = RetryClient()
+        self._client: NonBrowserClient = NON_BROWSER_CLIENT
         self._points: int = 0
         self._points_update_timestamp: int = int(time.time())
         self._xsrf_token: str | None = None

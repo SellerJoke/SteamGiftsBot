@@ -21,12 +21,16 @@ from src.const.path import ROOT_DIR
 from src.persistence.cookie_io import CookieIO
 from src.requests.header import Header
 from src.requests.meta import WebsiteThrottle, retry_on_exception, retry_on_502, delay_random
+# noinspection PyProtectedMember
+from src.util.avoid_circle_import import _CONSOLE as CONSOLE
 from src.util.file import create_file_if_not_exists
 
 
-class RetryClient(Client):
+class NonBrowserClient(Client):
     """遭遇特定异常或响应码时，自动重试请求的HTTP Client"""
     LOGGER: logging.Logger = None
+    MAINTENANCE: str = "Maintenance. We'll be back soon."
+    EDGE_IP_RESTRICTED: str = "Edge IP Restricted"
     __PEM_PATH: Path = ROOT_DIR / "resources/temp/system_ca.pem"
     __THROTTLES = [
         WebsiteThrottle("www.steamgifts.com").limit(60, 120) \
@@ -35,6 +39,7 @@ class RetryClient(Client):
     ]
     _PAUSE_SECONDS_429: int = 10 * 60
     _PAUSE_SECONDS_502: int = 5
+    _PAUSE_SECONDS_MAINTENANCE: int = 60
     _CERTIFICATION_EXPIRATION: int = 24 * 60 * 60
 
     def __init__(self, *, auth: AuthTypes | None = None, params: QueryParamTypes | None = None,
@@ -45,9 +50,10 @@ class RetryClient(Client):
                  timeout: TimeoutTypes = DEFAULT_TIMEOUT_CONFIG, follow_redirects: bool = False,
                  limits: Limits = DEFAULT_LIMITS, max_redirects: int = DEFAULT_MAX_REDIRECTS,
                  event_hooks: None | (typing.Mapping[str, list[EventHook]]) = None, base_url: URL | str = "",
-                 transport: BaseTransport | None = None, default_encoding: str | typing.Callable[[bytes], str] = "utf-8"):
-        if RetryClient.LOGGER is None:
-            RetryClient.LOGGER = logging.getLogger(__name__).getChild(RetryClient.__name__)
+                 transport: BaseTransport | None = None,
+                 default_encoding: str | typing.Callable[[bytes], str] = "utf-8"):
+        if NonBrowserClient.LOGGER is None:
+            NonBrowserClient.LOGGER = logging.getLogger(__name__).getChild(NonBrowserClient.__name__)
 
         # 下面的操作是将一些默认值合并到参数里
         headers_tmp: dict[str, str] = Header.universal()
@@ -64,8 +70,8 @@ class RetryClient(Client):
         cookies = cookies_tmp
 
         event_hooks_tmp = {
-            "request": [RetryClient._throttle, RetryClient._add_headers],
-            "response": [RetryClient._log_status_and_save_cookie],
+            "request": [NonBrowserClient._throttle, NonBrowserClient._add_headers],
+            "response": [NonBrowserClient._log_status_and_save_cookie],
         }
         if event_hooks:
             event_hooks_tmp = {
@@ -147,7 +153,7 @@ class RetryClient(Client):
         """
         # 如果要将data参数编码为multipart/form-data格式，则将data参数转换为files参数
         if multipart and data is not None and files is None:
-            files = RetryClient._to_multipart_files(data)
+            files = NonBrowserClient._to_multipart_files(data)
             data = None
         return super().post(url, content=content, data=data, files=files, json=json, params=params, headers=headers,
                             cookies=cookies, auth=auth, follow_redirects=follow_redirects, timeout=timeout,
@@ -186,24 +192,37 @@ class RetryClient(Client):
 
     @classmethod
     def _log_status_and_save_cookie(cls, response: Response):
-        logger = cls.LOGGER.getChild(RetryClient._log_status_and_save_cookie.__name__)
-        method = response.request.method
-        url = str(response.url)
+        logger = cls.LOGGER.getChild(NonBrowserClient._log_status_and_save_cookie.__name__)
+        status_code = response.status_code
+        method_url_code: str = f"{response.request.method} {response.url} - {response.status_code}"
         response.read()
         response_text = f"\n{'-' * 7}响应体开始{'-' * 7}\n{response.text}\n{'-' * 7}响应体结束{'-' * 7}" \
             if response.content else ""
         if response.is_success:
             CookieIO.save(response.cookies)
-        elif response.status_code == 429:
-            logger.error(f"{method} {url} - 429 访问频率过高，已被网站限制访问，休眠{cls._PAUSE_SECONDS_429}秒")
+        elif status_code == 302:
+            logger.info(f"{method_url_code} 重定向到{response.url}")
+        elif status_code == 403:
+            if NonBrowserClient.EDGE_IP_RESTRICTED in response.text:
+                logger.error(
+                    f"{method_url_code} Cloudflare反代或host配置错误，请检查 - {NonBrowserClient.EDGE_IP_RESTRICTED}")
+                CONSOLE.log(f"访问{response.url}失败：Cloudflare反代或host配置错误，请检查", style="bright_red")
+            else:
+                logger.error(f"{method_url_code} 访问被禁止{response_text}")
+        elif status_code == 429:
+            logger.error(f"{method_url_code} 访问频率过高，已被网站限制访问，休眠{cls._PAUSE_SECONDS_429}秒")
             time.sleep(cls._PAUSE_SECONDS_429)
-        elif response.status_code == 502:
-            logger.error(f"{method} {url} - 502 休眠{cls._PAUSE_SECONDS_502}秒{response_text}")
+        elif status_code == 502:
+            logger.error(f"{method_url_code} 休眠{cls._PAUSE_SECONDS_502}秒{response_text}")
             time.sleep(cls._PAUSE_SECONDS_502)
-        elif response.status_code == 302:
-            logger.info(f"{method} {url} - 302 重定向到{response.url}")
+        elif status_code == 520:
+            if NonBrowserClient.MAINTENANCE in response.text:
+                logger.error(f"{method_url_code} {NonBrowserClient.MAINTENANCE}")
+                time.sleep(cls._PAUSE_SECONDS_MAINTENANCE)
+            else:
+                logger.error(f"{method_url_code} 源站给Cloudflare返回了空的、未知或意外响应{response_text}")
         else:
-            logger.error(f"{method} {url} - {response.status_code}{response_text}")
+            logger.error(f"{method_url_code}{response_text}")
 
     @classmethod
     def _ca_bundle(cls) -> str:
@@ -219,6 +238,9 @@ class RetryClient(Client):
         ca_content = "\n\n".join(pem_parts)
         cls.__PEM_PATH.write_text(ca_content, encoding="ascii")
         return str(cls.__PEM_PATH)
+
+
+_NON_BROWSER_CLIENT: NonBrowserClient = NonBrowserClient()
 
 if __name__ == '__main__':
     pass

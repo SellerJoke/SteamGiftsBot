@@ -9,8 +9,9 @@ from src.object.persistent.steam_app import SteamApp
 from src.object.persistent.steam_package import SteamPackage
 # noinspection PyUnusedImports
 from src.object.persistent.user import User
-from src.requests.retry_client import RetryClient
+from src.requests.non_browser_client import NonBrowserClient
 from src.util.convertor import data2id_name_list
+from src.util.shared_objects import NON_BROWSER_CLIENT
 
 
 class SteamClient:
@@ -26,7 +27,7 @@ class SteamClient:
     def __init__(self):
         if SteamClient.LOGGER is None:
             SteamClient.LOGGER = logging.getLogger(__name__).getChild(SteamClient.__name__)
-        self._client = RetryClient()
+        self._client: NonBrowserClient = NON_BROWSER_CLIENT
 
     def __enter__(self):
         return self
