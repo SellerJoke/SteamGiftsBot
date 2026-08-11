@@ -76,7 +76,7 @@ class Giveaway(Base, IntPKMixin):
         self.entered = entered
         self.available = available
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(id={self.id}, code={self.code}, name={self.name}, points={self.points}, "\
                f"copies={self.copies}, app_id={self.app_id}, package_id={self.package_id}, link={self.link}, "\
                f"created_timestamp={self.created_timestamp}, start_timestamp={self.start_timestamp}, "\
@@ -121,7 +121,9 @@ class Giveaway(Base, IntPKMixin):
     @property
     def wilson_score(self) -> float:
         """赠送的威尔逊评分"""
-        return self.app.wilson_score if self.app else self.package.wilson_score if self.package else 0
+        return self.app.wilson_score if self.app \
+            else self.package.wilson_score if self.package \
+            else 0
 
     @property
     def winning_probability(self) -> float:

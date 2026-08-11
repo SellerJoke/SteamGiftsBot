@@ -126,7 +126,7 @@ class SteamGiftsClient:
         return self._handle_response(inserting, giveaway, name_url, response, logger)
 
     def _handle_response(self, inserting: bool, giveaway: Giveaway, name_url: str, response: Response,
-                         logger: logging.Logger):
+                         logger: logging.Logger) -> bool:
         """
         解析参赠响应，更新赠送状态，打印相应日志
         :param inserting: 是否参加
@@ -173,24 +173,24 @@ class SteamGiftsClient:
                             f"中奖概率{giveaway.winning_probability * 1000:>7.2f}‰  评级{giveaway.rank * 1000:>7.1f}")
                 return True
             else:
-                logger.warning(f"未能{operate_giveaway}: {'已参加' if inserting else '未参加'}")
+                logger.warning(f"未能{operate_giveaway} - {'已参加' if inserting else '未参加'}")
                 return False
         elif data["type"] == "error":
             self.points = int(data["points"])
             if inserting:
                 if (msg := data.get("msg")) == "Not Enough Points":
-                    logger.warning(f"未能{operate_giveaway}: 点数不足，当前点数{self.points}，需要{giveaway.points}点数")
+                    logger.warning(f"未能{operate_giveaway} - 点数不足，当前点数{self.points}，需要{giveaway.points}点数")
                 elif msg == "Previously Won":
-                    logger.info(f"未能{operate_giveaway}: 之前已赢得此游戏")
+                    logger.info(f"未能{operate_giveaway} - 之前已赢得此游戏")
                 elif msg == "Exists in Account":
-                    logger.info(f"未能{operate_giveaway}: 已拥有此游戏")
+                    logger.info(f"未能{operate_giveaway} - 已拥有此游戏")
                 elif msg == "Error":
-                    logger.warning(f"未能{operate_giveaway}: 创建者不能参加赠送或赠送过期/删除\n{formated_response}")
+                    logger.warning(f"未能{operate_giveaway} - 创建者不能参加赠送或赠送过期/删除\n{formated_response}")
                     giveaway.available = False
                 else:
                     logger.error(f"未预期的未能{operate_giveaway_and_response}")
             else:
-                logger.warning(f"未能{operate_giveaway}: 赠送过期或删除\n{formated_response}")
+                logger.warning(f"未能{operate_giveaway} - 赠送过期或删除\n{formated_response}")
         else:
             logger.error(f"未预期的未能{operate_giveaway_and_response}")
         return False
@@ -208,7 +208,7 @@ class SteamGiftsClient:
         if phpsessid and old_phpsessid!= phpsessid:
             self._client.set_cookie("PHPSESSID", phpsessid, domain=".www.steamgifts.com", path="/")
             if not self._fetch_login_status():
-                logger.error(f'{ConfigIO.FILE_PATH}中配置的PHPSESSID: "{phpsessid}"无效')
+                logger.error(f'{ConfigIO.CONFIG_PATH}中配置的PHPSESSID: "{phpsessid}"无效')
                 if old_phpsessid:
                     self._client.set_cookie("PHPSESSID", old_phpsessid, domain=".www.steamgifts.com", path="/")
 

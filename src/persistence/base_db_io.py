@@ -1,16 +1,28 @@
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 
 from src.const.path import ROOT_DIR
 from src.object.persistent.base_entity import T, Base
+# noinspection PyUnusedImports
+from src.object.persistent.giveaway import Giveaway
+# noinspection PyUnusedImports
+from src.object.persistent.package_app import PACKAGE_APP
+# noinspection PyUnusedImports
+from src.object.persistent.steam_app import SteamApp
+# noinspection PyUnusedImports
+from src.object.persistent.steam_package import SteamPackage
+# noinspection PyUnusedImports
+from src.object.persistent.user import User
 from src.util.convertor import entities2dict
 from src.util.file import create_dir_if_not_exists
 
-_db_path: Path = ROOT_DIR / "resources" / "persistence" / "steamgifts_bot.sqlite"
+_db_path: Path = ROOT_DIR / "resources/persistence/steamgifts_bot.sqlite"
 _db_engine = create_engine(f"sqlite:///{_db_path}")
+
+
 # 设置数据库连接的PRAGMA参数，启用WAL模式和设置busy timeout、同步模式
 @event.listens_for(_db_engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, _):
@@ -19,6 +31,8 @@ def _set_sqlite_pragma(dbapi_connection, _):
     cursor.execute("PRAGMA synchronous=NORMAL")  # 设置同步模式为NORMAL
     cursor.execute("PRAGMA busy_timeout=5000")  # 设置busy timeout为5秒
     cursor.close()
+
+
 # 创建数据库session maker，用于创建数据库会话
 # 参数expire_on_commit=False：在会话结束后，将结果保留在内存中，而不是再次从数据库中查询（会话结束后再次查询会抛出异常）
 _DB_SESSION_MAKER: sessionmaker = sessionmaker(bind=_db_engine, expire_on_commit=False)
@@ -43,7 +57,7 @@ def merge_all_without_relationship_by_sqlite(entities: Iterable[T], session: Ses
     """
     from sqlalchemy.dialects.sqlite import insert
 
-    entities = entities if isinstance(entities, list) else list(entities)
+    entities = entities if isinstance(entities, Sequence) else tuple(entities)
     if not entities:
         return
     clazz = type(entities[0])

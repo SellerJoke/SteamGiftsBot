@@ -1,8 +1,6 @@
 import base64
 import logging
-import os
 import ssl
-import tempfile
 import time
 import typing
 from pathlib import Path
@@ -19,7 +17,7 @@ from httpx._types import QueryParamTypes, HeaderTypes, CookieTypes, AuthTypes, T
     RequestContent, RequestData, RequestFiles, CertTypes, ProxyTypes
 from httpx_curl_cffi import CurlTransport
 
-from src.config.config import APP_NAME
+from src.const.path import ROOT_DIR
 from src.persistence.cookie_io import CookieIO
 from src.requests.header import Header
 from src.requests.meta import WebsiteThrottle, retry_on_exception, retry_on_502, delay_random
@@ -29,13 +27,15 @@ from src.util.file import create_file_if_not_exists
 class RetryClient(Client):
     """遭遇特定异常或响应码时，自动重试请求的HTTP Client"""
     LOGGER: logging.Logger = None
-    _THROTTLES = [
+    __PEM_PATH: Path = ROOT_DIR / "resources/temp/system_ca.pem"
+    __THROTTLES = [
         WebsiteThrottle("www.steamgifts.com").limit(60, 120) \
             .limit(60 * 60, 2400).limit(60 * 60 * 24, 14400),
         WebsiteThrottle("store.steampowered.com").limit(60, 100).limit(60 * 60, 10000)
     ]
-    _PAUSE_SECONDS_429 = 10 * 60
-    _PAUSE_SECONDS_502 = 5
+    _PAUSE_SECONDS_429: int = 10 * 60
+    _PAUSE_SECONDS_502: int = 5
+    _CERTIFICATION_EXPIRATION: int = 24 * 60 * 60
 
     def __init__(self, *, auth: AuthTypes | None = None, params: QueryParamTypes | None = None,
                  headers: HeaderTypes | None = None, cookies: CookieTypes | None = None,
@@ -122,7 +122,8 @@ class RetryClient(Client):
     @retry_on_exception(exceptions=TimeoutException)
     def post(self, url: URL | str, *, content: RequestContent | None = None, data: RequestData | None = None,
              multipart: bool = False, files: RequestFiles | None = None, json: typing.Any | None = None,
-             params: QueryParamTypes | None = None, headers: HeaderTypes | None = None, cookies: CookieTypes | None = None,
+             params: QueryParamTypes | None = None, headers: HeaderTypes | None = None,
+             cookies: CookieTypes | None = None,
              auth: AuthTypes | UseClientDefault = USE_CLIENT_DEFAULT,
              follow_redirects: bool | UseClientDefault = USE_CLIENT_DEFAULT,
              timeout: TimeoutTypes | UseClientDefault = USE_CLIENT_DEFAULT, extensions: RequestExtensions | None = None
@@ -135,7 +136,7 @@ class RetryClient(Client):
         :param multipart: 是否将data参数编码为供files参数使用的multipart/form-data格式数据
         :param files:
         :param json:
-        :param params: url参数
+        :param params: url查询参数
         :param headers: 请求头
         :param cookies: cookies
         :param auth: 认证
@@ -167,16 +168,16 @@ class RetryClient(Client):
         """
         将字典转换为供file参数使用的multipart/form-data格式
         :param data: 输入字典
-        :return: 转换后的字典，每个键值对为(None, 厼式化后的值)，用于构建multipart/form-data格式
+        :return: 转换后的字典，每个键值对为(None, 值)，用于构建multipart/form-data格式
         """
-        return  {k: (None, v) for k, v in data.items()}
+        return {k: (None, v) for k, v in data.items()}
 
     @classmethod
     def _throttle(cls, request: Request):
         url: str = str(request.url)
-        for throttle in cls._THROTTLES:
+        for throttle in cls.__THROTTLES:
             throttle.wait_until_permit(url)
-        for throttle in cls._THROTTLES:
+        for throttle in cls.__THROTTLES:
             throttle.record(url)
 
     @staticmethod
@@ -189,7 +190,7 @@ class RetryClient(Client):
         method = response.request.method
         url = str(response.url)
         response.read()
-        response_text = f"\n{'-' * 7}响应体{'-' * 7}\n{response.text[:100]}\n{'-' * 7}响应体结束{'-' * 7}" \
+        response_text = f"\n{'-' * 7}响应体开始{'-' * 7}\n{response.text}\n{'-' * 7}响应体结束{'-' * 7}" \
             if response.content else ""
         if response.is_success:
             CookieIO.save(response.cookies)
@@ -204,21 +205,20 @@ class RetryClient(Client):
         else:
             logger.error(f"{method} {url} - {response.status_code}{response_text}")
 
-    @staticmethod
-    def _ca_bundle() -> str:
-        pem_path = Path(os.path.join(tempfile.gettempdir(), APP_NAME, "system_ca.pem"))
-        if pem_path.is_file() and time.time() - pem_path.stat().st_mtime < 24 * 60 * 60:
-            return str(pem_path)
-        create_file_if_not_exists(pem_path)
+    @classmethod
+    def _ca_bundle(cls) -> str:
+        if cls.__PEM_PATH.is_file() and time.time() - cls.__PEM_PATH.stat().st_mtime < NonBrowserClient._CERTIFICATION_EXPIRATION:
+            return str(cls.__PEM_PATH)
+        create_file_if_not_exists(cls.__PEM_PATH)
         system_certs = ssl.create_default_context().get_ca_certs(binary_form=True)
         pem_parts = []
         for der in system_certs:
             b64 = base64.b64encode(der).decode("ascii")
             lines = [b64[i:i + 64] for i in range(0, len(b64), 64)]
-            pem_parts.append("-----BEGIN CERTIFICATE-----\n" + "\n".join(lines) + "\n-----END CERTIFICATE-----")
+            pem_parts.append(f"-----BEGIN CERTIFICATE-----\n{'\n'.join(lines)}\n-----END CERTIFICATE-----")
         ca_content = "\n\n".join(pem_parts)
-        pem_path.write_text(ca_content, encoding="ascii")
-        return str(pem_path)
+        cls.__PEM_PATH.write_text(ca_content, encoding="ascii")
+        return str(cls.__PEM_PATH)
 
 if __name__ == '__main__':
-    print([1, 2, 3][: 100])
+    pass

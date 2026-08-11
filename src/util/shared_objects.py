@@ -1,3 +1,5 @@
 from rich.console import Console
 
-CONSOLE: Console = Console(log_time_format="[%Y-%m-%d %H:%M:%S] ", log_path=False)
+from src.util.avoid_circle_import import _CONSOLE
+
+CONSOLE: Console = _CONSOLE

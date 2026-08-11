@@ -45,6 +45,9 @@ class SteamPackage(Base, IntPKMixin, NameMixin):
         """
         :return: 关联的游戏的平均威尔逊评分
         """
+        # 计算package类型的游戏包的威尔逊评分时只计入游戏的评分
+        # 问：为什么这里把类型为None的也计入？
+        # 答：因为可能未能从Steam获取到某些app的信息，此时它的类型不确定，只能填None，为了不错过可能是游戏的app，只能把它也计入
         game_wilson_scores = [app.wilson_score for app in self.apps if app.type == "game" or app.type is None]
         if len(game_wilson_scores) == 0:
             return 0

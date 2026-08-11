@@ -1,5 +1,5 @@
 import logging
-from typing import cast, Iterable, Any
+from typing import Iterable, Any
 
 from rich import box
 from rich.style import Style
@@ -73,8 +73,8 @@ class Bot:
         updating_giveaways: list[Giveaway] = []
         while fetched_giveaways:
             fetched_giveaway: Giveaway = fetched_giveaways.pop()
-            _id: int = fetched_giveaway.id
-            local_giveaway: Giveaway | None = local_giveaways.pop(_id, None)
+            id_: int = fetched_giveaway.id
+            local_giveaway: Giveaway | None = local_giveaways.pop(id_, None)
             if local_giveaway:
                 combined_giveaway: Giveaway = Bot._combine_giveaway(local_giveaway, fetched_giveaway)
                 if combined_giveaway.rank_fresh:
@@ -98,7 +98,7 @@ class Bot:
 
     def _update_giveaways(self, giveaways: list[Giveaway]) -> list[Giveaway]:
         """
-        更新过期的giveaway，返回更新后的giveaway列表
+        更新过期的giveaway的app和package，返回更新后的giveaway列表
         工作流程
         1. 从giveaways中找到package_id为None且package为None的赠送，收集package_id，从数据库查询package信息
         2. 从giveaways和数据库查询到的package中找到过期的package的id，从Steam网站获取package信息
@@ -317,7 +317,7 @@ class Bot:
     def _create_table() -> Table:
         """初始化要打印的赠送表。"""
         table = Table(title="赠送统计", box=box.SIMPLE)
-        table.add_column("赠送ID", width=8)
+        table.add_column("ID", width=8)
         table.add_column("游戏名称", max_width=30, justify="left", overflow="fold")
         table.add_column("Wilson score", width=12, justify="right")
         table.add_column("获奖概率", width=9, justify="right")

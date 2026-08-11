@@ -6,6 +6,6 @@ __pycache__/
 /.venv/
 /log/
 /resources/persistence/
-/resources/status.dill
+/resources/temp/
 *test*
 *TODO*

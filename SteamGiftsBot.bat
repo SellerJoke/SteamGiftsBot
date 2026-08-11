@@ -2,8 +2,9 @@
 @echo off
 :: 设置控制台编码为UTF-8且不显示本条命令
 chcp 65001 >nul
-:: 增加控制台缓冲区，减小由于最小化窗口后输出缓冲区满导致应用卡住的可能性
-mode con: lines=9999
+:: cols=101: 设置窗口宽度为101列
+:: lines=9999: 将控制台缓冲区行数设为最大值9999，减小由于最小化窗口后输出缓冲区满导致应用卡住的可能性
+mode con: cols=101 lines=9999
 :: 检测 Python 是否安装且在 PATH 中可用
 python --version >nul 2>&1
 if errorlevel 1 (
@@ -20,6 +21,8 @@ if not exist .venv\Scripts\activate (
 )
 :: 激活虚拟环境并返回控制权
 call .venv\Scripts\activate
+::更新pip
+python -m pip install --upgrade pip >nul 2>&1
 :: 安装Python依赖（如果未安装）
 pip install -q -r requirements.txt
 :: 运行主程序

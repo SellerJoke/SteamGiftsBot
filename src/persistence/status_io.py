@@ -10,17 +10,17 @@ from src.util.file import create_file_if_not_exists
 
 class StatusIO:
     """读写应用状态的类"""
-    _STATUS_PATH: Path = ROOT_DIR / "resources" / "persistence" / "status.dill"
+    __STATUS_PATH: Path = ROOT_DIR / "resources/persistence/status.dill"
     _DEFAULT_STATUS: Status = Status(points=None, points_update_timestamp=None, xsrf_token=None)
     _status: Status = None
 
     @classmethod
     def load(cls):
         """加载状态"""
-        if not cls._STATUS_PATH.is_file():
+        if not cls.__STATUS_PATH.is_file():
             cls._status = cls._DEFAULT_STATUS
         else:
-            with open(cls._STATUS_PATH, "rb") as f:
+            with open(cls.__STATUS_PATH, "rb") as f:
                 cls._status = dill.load(f)
         return cls._status
 
@@ -50,8 +50,8 @@ class StatusIO:
         """保存状态"""
         if cls._status is None:
             raise Exception("保存状态前必须先加载状态")
-        create_file_if_not_exists(cls._STATUS_PATH)
-        with open(cls._STATUS_PATH, "wb") as f:
+        create_file_if_not_exists(cls.__STATUS_PATH)
+        with open(cls.__STATUS_PATH, "wb") as f:
             dill.dump(cls._status, f)
 
 
