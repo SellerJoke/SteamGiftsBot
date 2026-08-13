@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Mapped, relationship
 
 from src.object.auxiliary import IdName
-from src.object.persistent.base_entity import Base, IntPKMixin, NameMixin, UpdateTimestampMixin
+from src.object.persistent.base_entity import Base, IntPKMixin, NameMixin, UpdateTimestampMixin, AvailableMixin
 from src.object.persistent.package_app import PACKAGE_APP
 from src.util.convertor import to_id_name
 
@@ -13,10 +13,11 @@ if TYPE_CHECKING:
     from src.object.persistent.giveaway import Giveaway
 
 
-class SteamPackage(Base, IntPKMixin, NameMixin, UpdateTimestampMixin):
+class SteamPackage(IntPKMixin, NameMixin, AvailableMixin, UpdateTimestampMixin, Base):
     """Steam Package实体类"""
 
-    UPDATE_INTERVAL = 30 * 24 * 60 * 60
+    UPDATE_INTERVAL = 30 * 24 * 60 * 60 # Steam包信息更新间隔：30天
+    UNAVAILABLE_UPDATE_INTERVAL = 3 * UPDATE_INTERVAL   # Steam包信息不可获得时的更新时间：3 * UPDATE_INTERVAL
 
     __tablename__ = "steam_package"
     __table_args__ = {'extend_existing': True}
@@ -28,9 +29,9 @@ class SteamPackage(Base, IntPKMixin, NameMixin, UpdateTimestampMixin):
         relationship(primaryjoin="Giveaway.package_id == SteamPackage.id", cascade="all, delete-orphan",
                      back_populates="package", lazy="noload")
 
-    def __init__(self, *, id_: int, name: str, app_infos: list[IdName], update_timestamp: int = None):
-        super().__init__(id=id_, name=name,
-                         update_timestamp=update_timestamp if update_timestamp is not None else int(time.time()))
+    def __init__(self, *, id_: int, name: str, app_infos: list[IdName], available: bool = True,
+                 update_timestamp: int = None):
+        super().__init__(id=id_, name=name, available=available, update_timestamp=update_timestamp)
         self._app_infos: list[IdName] = app_infos
 
     def __repr__(self):
@@ -64,7 +65,9 @@ class SteamPackage(Base, IntPKMixin, NameMixin, UpdateTimestampMixin):
         """
         :return: 包内的应用评价信息是否在有效期内
         """
-        return time.time() - self.update_timestamp <= SteamPackage.UPDATE_INTERVAL
+        passed_time: int = int(time.time()) - self.update_timestamp
+        return passed_time <= SteamPackage.UPDATE_INTERVAL if self.available else \
+            passed_time <= SteamPackage.UNAVAILABLE_UPDATE_INTERVAL
 
 
 if __name__ == "__main__":

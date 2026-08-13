@@ -1,11 +1,12 @@
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, BindParameter
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.sql import roles
 
 from src.const.path import ROOT_DIR
-from src.object.persistent.base_entity import T, Base
+from src.object.persistent.base_entity import T, Base, IntPK
 # noinspection PyUnusedImports
 from src.object.persistent.giveaway import Giveaway
 # noinspection PyUnusedImports
@@ -72,6 +73,11 @@ def merge_all_without_relationship_by_sqlite(entities: Iterable[T], session: Ses
     else:
         with db_session() as session, session.begin():
             session.execute(stmt, entity_dicts)
+
+def list_by_ids(entity_class: type[IntPK], ids: Iterable[int] | BindParameter[int] | roles.InElementRole) -> list[IntPK]:
+    with db_session() as session, session.begin():
+        # noinspection PyTypeChecker
+        return session.query(entity_class).filter(entity_class.id.in_(ids)).all()
 
 
 if __name__ == '__main__':

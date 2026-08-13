@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import VARCHAR, INTEGER, BOOLEAN, ForeignKey, text, BIGINT, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.object.persistent.base_entity import Base, IntPKMixin, UpdateTimestampMixin
+from src.object.persistent.base_entity import Base, IntPKMixin, UpdateTimestampMixin, AvailableMixin
 
 if TYPE_CHECKING:
     from src.object.persistent.steam_app import SteamApp
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from src.object.persistent.user import User
 
 
-class Giveaway(Base, IntPKMixin, UpdateTimestampMixin):
+class Giveaway(IntPKMixin, AvailableMixin, UpdateTimestampMixin, Base):
     """SteamGifts giveaway实体类"""
     __tablename__ = "giveaway"
     __table_args__ = (
@@ -24,7 +24,6 @@ class Giveaway(Base, IntPKMixin, UpdateTimestampMixin):
 
     # 用于从steamgifts链接中提取code
     _CODE_REGEX = re.compile(r"https://www\.steamgifts\.com/giveaway/([a-zA-Z0-9]{5})(/.*)?")
-    _PROBABILITY_CONSTANT = 2500
 
     points: Mapped[int] = mapped_column(INTEGER, default=0, server_default=text("0"), nullable=False)
     copies: Mapped[int] = mapped_column(INTEGER, default=1, server_default=text("1"), nullable=False)
@@ -56,7 +55,7 @@ class Giveaway(Base, IntPKMixin, UpdateTimestampMixin):
                  whitelist: bool = False, group: bool = False, contributor_level: int = 0, comment_count: int = 0,
                  entry_count: int = 0, creator_id: int, entered: bool = False, available: bool = True,
                  update_timestamp: int = None):
-        super().__init__(id=id_, update_timestamp=update_timestamp if update_timestamp is not None else int(time.time()))
+        super().__init__(id=id_, available=available, update_timestamp=update_timestamp)
         self._name = name
         self.points = points
         self.copies = copies
@@ -75,7 +74,6 @@ class Giveaway(Base, IntPKMixin, UpdateTimestampMixin):
         self.entry_count = entry_count
         self.creator_id = creator_id
         self.entered = entered
-        self.available = available
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(id={self.id}, code={self.code}, name={self.name}, points={self.points}, "\

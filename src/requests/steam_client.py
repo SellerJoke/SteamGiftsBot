@@ -1,5 +1,4 @@
 import logging
-import time
 from typing import Iterable, Any, Literal
 
 from src.object.auxiliary import IdName
@@ -50,7 +49,7 @@ class SteamClient:
             app_details = data[str(app_id)]["data"]
             steam_app = SteamApp(id=app_id, name=app_details["name"], type=app_details["type"])
         else:
-            steam_app = SteamApp(id=app_id, name=name)
+            steam_app = SteamApp(id=app_id, name=name, available=False)
             logger.warning(f"获取Steam App {name_id}失败：不存在或已删除")
 
         response = self._client.get(SteamClient._APP_VIEWS_URL.format(app_id), params=SteamClient._APP_VIEWS_PARAMS)
@@ -59,12 +58,11 @@ class SteamClient:
             if data["success"] == 1:
                 steam_app.total_positive = data["query_summary"]["total_positive"]
                 steam_app.total_reviews = data["query_summary"]["total_reviews"]
-                steam_app.update_timestamp = int(time.time())
                 logger.info(f"成功获取{steam_app}")
                 return steam_app
         steam_app.total_positive = 0
         steam_app.total_reviews = 0
-        steam_app.update_timestamp = 0
+        steam_app.available = False
         logger.warning(f"获取Steam App {name_id}评价失败")
         return steam_app
 
@@ -84,7 +82,7 @@ class SteamClient:
         data = self._fetch_details("package", package_id)
         if not data:
             logger.warning(f"获取Steam Package {name_id}失败：不存在或已删除")
-            return SteamPackage(id_=package_id, name=name, app_infos=[], update_timestamp=0)
+            return SteamPackage(id_=package_id, name=name, app_infos=[], available=False)
         package_details = data[str(package_id)]["data"]
         steam_package = SteamPackage(id_=package_id, name=package_details["name"],
                                      app_infos=data2id_name_list(package_details["apps"]))

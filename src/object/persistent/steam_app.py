@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import VARCHAR, INTEGER
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.object.persistent.base_entity import Base, IntPKMixin, NameMixin, UpdateTimestampMixin
+from src.object.persistent.base_entity import Base, IntPKMixin, NameMixin, UpdateTimestampMixin, AvailableMixin
 from src.object.persistent.package_app import PACKAGE_APP
 
 if TYPE_CHECKING:
@@ -12,10 +12,11 @@ if TYPE_CHECKING:
     from src.object.persistent.steam_package import SteamPackage
 
 
-class SteamApp(Base, IntPKMixin, NameMixin, UpdateTimestampMixin):
+class SteamApp(IntPKMixin, NameMixin, AvailableMixin, UpdateTimestampMixin, Base):
     """Steam App实体类"""
 
     UPDATE_INTERVAL = 7 * 24 * 60 * 60 # App信息更新间隔：7天
+    UNAVAILABLE_UPDATE_INTERVAL = 10 * UPDATE_INTERVAL   # App信息不可获得时的更新时间：7 * UPDATE_INTERVAL
 
     __tablename__ = "steam_app"
     __table_args__ = {'extend_existing': True}
@@ -36,7 +37,7 @@ class SteamApp(Base, IntPKMixin, NameMixin, UpdateTimestampMixin):
     def __repr__(self):
         return f"<{self.__class__.__name__}(id={self.id}, name={self.name}, type={self.type}, "\
                f"total_positive={self.total_positive}, total_reviews={self.total_reviews}, "\
-               f"update_timestamp={self.update_timestamp})>"
+               f"available={self.available}, update_timestamp={self.update_timestamp})>"
 
     @property
     def wilson_score(self) -> float:
@@ -78,7 +79,9 @@ class SteamApp(Base, IntPKMixin, NameMixin, UpdateTimestampMixin):
         """
         :return: 应用评价信息是否在有效期内
         """
-        return time.time() - self.update_timestamp <= SteamApp.UPDATE_INTERVAL
+        passed_time: int = int(time.time()) - self.update_timestamp
+        return passed_time <= SteamApp.UPDATE_INTERVAL if self.available else \
+            passed_time <= SteamApp.UNAVAILABLE_UPDATE_INTERVAL
 
 
 if __name__ == "__main__":

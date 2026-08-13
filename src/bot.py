@@ -12,7 +12,7 @@ from src.object.persistent.giveaway import Giveaway
 from src.object.persistent.steam_app import SteamApp
 from src.object.persistent.steam_package import SteamPackage
 from src.object.persistent.user import User
-from src.persistence import giveaway_io, composite_db_io, base_db_io, universe_db_io
+from src.persistence import giveaway_io, composite_db_io, base_db_io
 from src.persistence.base_db_io import db_session
 from src.requests.steam_client import SteamClient
 from src.requests.steamgifts_client import SteamGiftsClient
@@ -115,8 +115,10 @@ class Bot:
             if giveaway.package_id is not None and giveaway.package is None
         }
         # 用上述package_ids从数据库查询package信息
-        queried_fresh_packages: list[SteamPackage] = universe_db_io\
-            .list_fresh_entities_by_ids(SteamPackage, tuple(info.id for info in querying_package_infos))
+        # noinspection DuplicatedCode
+        queried_packages: list[SteamPackage] = base_db_io\
+            .list_by_ids(SteamPackage, tuple(info.id for info in querying_package_infos))
+        queried_fresh_packages: list[SteamPackage] = [pkg for pkg in queried_packages if pkg.fresh]
         # 获取giveaways中过期的package_infos
         # noinspection PyTypeChecker
         outdated_giveaway_package_infos: set[IdName] = {
@@ -138,8 +140,9 @@ class Bot:
         # 合并querying_pkg_app_infos和querying_giveaway_app_infos，得到需要从数据库或Steam网站获取的app信息
         querying_app_infos: set[IdName] = querying_pkg_app_infos | querying_giveaway_app_infos
         # 用上述app_ids从数据库查询app信息
-        queried_fresh_apps: list[SteamApp] = universe_db_io\
-            .list_fresh_entities_by_ids(SteamApp, tuple(info.id for info in querying_app_infos))
+        # noinspection DuplicatedCode
+        queried_apps: list[SteamApp] = base_db_io.list_by_ids(SteamApp, tuple(info.id for info in querying_app_infos))
+        queried_fresh_apps: list[SteamApp] = [app for app in queried_apps if app.fresh]
         # 从giveaways中提取过期的app_infos
         # noinspection PyTypeChecker
         outdated_giveaway_app_infos: set[IdName] = {
@@ -154,7 +157,7 @@ class Bot:
         # 从queried_packages提取过期的app
         outdated_pkg_app_infos: set[IdName] = {
             to_id_name(app)
-            for pkg in queried_fresh_packages
+            for pkg in queried_packages
             for app in pkg.apps if not app.fresh
         }
         # 合并querying_app_infos、outdated_giveaway_app_infos、outdated_giveaway_pkg_app_infos、outdated_pkg_app_infos，
@@ -286,14 +289,15 @@ class Bot:
         }
         # 新增赠送
         new_giveaways: set[Giveaway] = fetched_giveaways - queried_giveaways
-        # 改变的赠送，因为赠送的字段只有comment_count、entry_count、entered、available会改变，所以只更新这四个字段
+        # 改变的赠送，因为赠送的字段只有comment_count、entry_count、entered、available、update_timestamp会改变，所以只更新这几个字段
         updating_giveaway_fields: list[dict[str, Any]] = [
             {"id": new.id, "comment_count": new.comment_count, "entry_count": new.entry_count, "entered": new.entered,
              "available": new.available, "update_timestamp": new.update_timestamp}
             for new in fetched_giveaways
             if (old := queried_giveaway_dict.get(new.id)) and
                (new.comment_count != old.comment_count or new.entry_count != old.entry_count or
-                new.entered != old.entered or new.available != old.available)
+                new.entered != old.entered or new.available != old.available or
+                new.update_timestamp != old.update_timestamp)
         ]
         # 只存在于数据库而不存在于SteamGifts返回的赠送，下列赠送不会出现在SteamGifts返回的赠送列表里：
         # 1. 用户屏蔽的游戏
